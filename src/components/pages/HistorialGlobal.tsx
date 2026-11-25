@@ -7,7 +7,7 @@ import { Cargando, ErrorVista, fechaLegible } from '@/components/EstadosVista';
 import { PageShell } from '@/components/layout/PageShell';
 import { SeccionCard } from '@/components/layout/SeccionCard';
 import { MensajeVacio } from '@/components/layout/MensajeVacio';
-import { BOTON_PRIMARIO, CLASE_CAMPO, CLASE_ETIQUETA } from '@/components/layout/estilos';
+import { CLASE_CAMPO, CLASE_ETIQUETA } from '@/components/layout/estilos';
 import { useRepository } from '@/components/RepositoryProvider';
 import { useRelojDemo } from '@/components/useRelojDemo';
 import { VistaCorreo } from '@/components/VistaCorreo';

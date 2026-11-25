@@ -719,6 +719,8 @@ function AccionesFila({ tramite, datos, actor, esSecretaria, pendientes, onAccio
         return pa - pb;
       })[0] ?? todas[0];
 
+  if (!recomendada) return null;
+
   const secundarias = todas.filter((accion) => accion.clave !== recomendada.clave);
   const boton = 'inline-flex min-h-tactil items-center gap-2 rounded-control border-2 border-barro bg-superficie px-3 py-2 text-base font-bold text-barro';
 

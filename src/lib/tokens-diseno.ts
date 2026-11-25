@@ -65,11 +65,11 @@ export const ARENA_DECORATIVA = TOKENS_DISENO.arena;
 /** WCAG 2.1: luminancia relativa sRGB. */
 export function luminancia(color: string): number {
   const hexadecimal = color.replace('#', '');
-  const canales = [0, 2, 4].map((inicio) => {
+  const [rojo = 0, verde = 0, azul = 0] = [0, 2, 4].map((inicio) => {
     const valor = parseInt(hexadecimal.slice(inicio, inicio + 2), 16) / 255;
     return valor <= 0.03928 ? valor / 12.92 : Math.pow((valor + 0.055) / 1.055, 2.4);
   });
-  return 0.2126 * canales[0] + 0.7152 * canales[1] + 0.0722 * canales[2];
+  return 0.2126 * rojo + 0.7152 * verde + 0.0722 * azul;
 }
 
 /** Relación de contraste entre dos colores (1 a 21). */

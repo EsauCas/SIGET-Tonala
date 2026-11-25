@@ -2,7 +2,7 @@
 
 **Última actualización:** 2026-11-25
 **Estado general:** aplicación **congelada como demostración única**. No hay Supabase, Resend, autenticación real ni rutas `/api/*`. La interfaz, los datos, los correos y el reloj viven en el navegador. La arquitectura de producción se conserva sólo como documentación en `docs/produccion-futura/`.
-**Fase actual:** Fase 9 (rediseño visual y usabilidad para adultos mayores) en cierre. El historial de entrega cubre las fases 1-6, el cierre 8 y el rediseño 9; no hay un bloque numerado como Fase 7 en este repositorio.
+**Fase actual:** Fase 9 (rediseño visual y usabilidad para adultos mayores) completada en código; la comprobación manual en navegador queda descrita y pendiente. El historial de entrega cubre las fases 1-6, el cierre 8 y el rediseño 9; no hay un bloque numerado como Fase 7 en este repositorio.
 
 Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · Tailwind 3.4 · tesseract.js v5 local · Vitest. Sin variables de entorno obligatorias, sin secretos, sin `// TODO` y sin botones decorativos. Los estados de carga, error, vacío y éxito están presentes en las vistas.
 
@@ -89,7 +89,7 @@ Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · T
 
 **Creados:** `src/lib/tokens-diseno.ts`, `src/lib/__tests__/contraste.test.ts`, `src/components/layout/Header.tsx`, `ControlTamanoLetra.tsx`, `PerfilDemo.tsx`, `MigasPan.tsx`, `PageShell.tsx`, `SeccionCard.tsx`, `TarjetaAccion.tsx`, `IndicadorPasos.tsx`, `MensajeVacio.tsx` y `estilos.ts`.
 
-**Modificados:** `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`, `src/components/Navbar.tsx`, `src/components/pages/InicioPorRol.tsx`, `SeccionTramites.tsx`, `GestionTramites.tsx`, `HistorialGlobal.tsx`, `AdminPanel.tsx`, `ListadoTramites.tsx`, `src/components/AsistenteTramite.tsx`, `CamposSolicitud.tsx`, `GuiaLicencias.tsx`, `SemaforoTramite.tsx`, `OcrScanner.tsx`, `AcuseIndividualPanel.tsx`, `AcuseLotePanel.tsx`, `DetalleTramite.tsx`, `DrawerExpediente.tsx`, `DialogoConfirmacion.tsx`, `EstadosVista.tsx`, `EmailLogToast.tsx`, `VistaCorreo.tsx`, `TramiteLista.tsx`, `LoginForm.tsx`, `SubirEvidencia.tsx`, `DemoResetButton.tsx`, `src/components/demo/DemoProfileSelector.tsx`, `src/app/login/page.tsx`, `src/app/tramites/nuevo/page.tsx`, `src/app/tramites/[id]/page.tsx`, `README.md` y este `PROGRESO.md`.
+**Modificados:** `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`, `src/components/Navbar.tsx`, `src/components/pages/InicioPorRol.tsx`, `SeccionTramites.tsx`, `GestionTramites.tsx`, `HistorialGlobal.tsx`, `AdminPanel.tsx`, `ListadoTramites.tsx`, `src/components/AsistenteTramite.tsx`, `CamposSolicitud.tsx`, `GuiaLicencias.tsx`, `SemaforoTramite.tsx`, `OcrScanner.tsx`, `AcuseIndividualPanel.tsx`, `AcuseLotePanel.tsx`, `DetalleTramite.tsx`, `DrawerExpediente.tsx`, `DialogoConfirmacion.tsx`, `EstadosVista.tsx`, `EmailLogToast.tsx`, `VistaCorreo.tsx`, `TramiteLista.tsx`, `LoginForm.tsx`, `SubirEvidencia.tsx`, `DemoResetButton.tsx`, `src/components/demo/DemoProfileSelector.tsx`, `src/app/login/page.tsx`, `src/app/tramites/nuevo/page.tsx`, `README.md` y este `PROGRESO.md`. `src/app/tramites/[id]/page.tsx` se revisó, pero no requirió cambios.
 
 ---
 
@@ -99,7 +99,7 @@ Se movió `.env.local` a un archivo temporal, se corrieron los tres comandos y s
 
 | Comando | Resultado |
 |---|---|
-| `npm test` | **92/92** en 14 archivos (exit 0) |
+| `npm test` | **95/95** en 15 archivos (exit 0) |
 | `npm run lint` | sin errores ni advertencias (exit 0) |
 | `npm run build` | correcto sin variables de entorno; sin rutas `/api/*` (exit 0) |
 | `npm run setup:ocr` | worker, core y `spa.traineddata` copiados a `public/tesseract` (3.2 MB) |
@@ -158,7 +158,7 @@ Para terminar, en `/admin` pulsa «Enviar recordatorios de tiempo de respuesta»
 2. **Sin servicios externos.** No hay base de datos PostgreSQL, Supabase, Resend, Vercel Cron ni envío real de correos. Nada sale de la computadora.
 3. **OCR con material sintético.** Los parsers se calibraron con textos inventados; con formatos impresos reales hay que ampliar muestras. La confianza es por campo derivada de reglas deterministas, no probabilidad por token. No se leen PDF ni otros idiomas.
 4. **Archivos.** Se validan MIME y 5 MB; la copia base64 se guarda sólo hasta 2 MB. No hay descarga ni vista previa de los documentos; el acuse OCR tampoco se puede volver a abrir como archivo.
-5. **Pruebas.** Cobertura unitaria y de componente (92 pruebas). No se ejecutaron E2E en navegador, cámara física, dispositivo móvil real ni auditoría automatizada con axe.
+5. **Pruebas.** Cobertura unitaria y de componente (95 pruebas, incluida la de contraste). No se ejecutaron E2E en navegador, cámara física, dispositivo móvil real ni auditoría automatizada con axe; la comprobación manual de la Fase 9 está descrita arriba y pendiente.
 6. **Artefactos OCR.** `public/tesseract/` está ignorado por Git: hay que ejecutar `npm run setup:ocr` después de clonar o de cambiar de versión de `tesseract.js`.
 7. **Auditoría de dependencias.** Cinco avisos de `npm audit`; se documentan y no se corrigen con `--force` para no romper la versión fijada.
 8. **Historial de Git.** El repositorio no tiene commits. Las fases 3, 4, 5, 6 y 8, incluidos todos los cambios demo-only, permanecen sin commitear.
@@ -185,3 +185,25 @@ bandeja operativa, OCR con confirmación humana y cola idempotente en cliente.
 
 Pruebas: 92/92 · lint limpio · build correcto sin .env.local ni secretos.
 ```
+
+## Mensaje de commit sugerido (Fase 9)
+
+```text
+feat(fase9): rediseñar SIGET-Tonalá para lectura accesible
+
+Aplica la identidad de Tonalá (café, barro y alfarería) con tokens únicos
+y prueba de contraste: texto >= 7:1, bordes y foco >= 3:1. Unifica el
+encabezado con wordmark, perfil de prueba, tamaño de letra persistido,
+skip-link, navegación visible y migas; añade PageShell y secciones con
+una sola acción principal. El semáforo usa franja gruesa, ícono, etiqueta
+y paso de 5; el OCR muestra confianza y «Requiere validación» con captura
+manual sin bloquear. Microcopy ciudadano: tiempo de respuesta, resultado
+de la revisión, enviar a revisión y constancia de recibido.
+
+Sólo presentación: sin cambios de repositorios, OCR, estados, SLA, rutas
+ni permisos.
+
+Pruebas: 95/95 · lint limpio · tsc limpio · build correcto sin .env.local.
+```
+
+**Nota:** el rediseño ya quedó registrado en el commit local `3b543f3 visual update`. Los cinco ajustes finales de tipos (`Header`, `AdminPanel`, `GestionTramites`, `HistorialGlobal` y `tokens-diseno`) y este cierre documental están sin commitear; no se hizo commit ni push adicional.

@@ -89,7 +89,7 @@ export function Header() {
                           : 'border-arena bg-cafe text-white'
                       }`}
                     >
-                      <Icono aria-hidden="true" className="h-6 w-6 shrink-0" />
+                      <Icono aria-hidden={true} className="h-6 w-6 shrink-0" />
                       <span>{etiqueta}</span>
                     </Link>
                   </li>

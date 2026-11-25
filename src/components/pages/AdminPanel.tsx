@@ -7,6 +7,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Stamp,
+  Timer,
   UsersRound
 } from 'lucide-react';
 import Link from 'next/link';

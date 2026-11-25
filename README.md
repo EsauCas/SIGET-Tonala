@@ -32,6 +32,8 @@ No hay `.env.local` obligatorio. No hay que crear proyectos en la nube ni copiar
 
 `npm run setup:ocr` copia desde `node_modules` el worker, el core y `spa.traineddata` a `public/tesseract`. Esos archivos no se descargan en tiempo de ejecución: la lectura OCR funciona aunque el equipo esté sin conexión. Vuelve a ejecutar el comando si borras `public/tesseract` o cambias de versión de `tesseract.js`.
 
+La interfaz usa una paleta de café, barro y alfarería con contraste verificado. En el encabezado puedes elegir «Normal», «Grande» o «Muy grande»: el tamaño se recuerda al recargar.
+
 ---
 
 ## Guion de presentación (5 minutos)
@@ -59,7 +61,7 @@ Semilla lista para mostrar sin hacer nada: 12 expedientes, los 5 colores del sem
 | Plantillas de correo HTML | **Reales** | Se generan de verdad; «Ver correo» muestra ese HTML. |
 | Reloj de demo y recordatorios manuales | **Reales** | Botones 24/48/72 h, restablecer y enviar recordatorios. |
 | Persistencia en `localStorage` | **Real** | Versión 2; reseed automático al cambiar de versión; aviso si está lleno o deshabilitado. |
-| Accesibilidad | **Real** | 18 px base, contraste 7:1, objetivos de 52 px, foco visible, `aria-live`, diálogos con Esc y foco contenido. |
+| Accesibilidad | **Real** | 18 px base, contraste 7:1, objetivos de 52 px, foco visible, `aria-live`, diálogos con Esc y foco contenido. Encabezado único con «Estás como: …», migas y tamaño de letra Normal/Grande/Muy grande persistido. |
 | Inicio de sesión | **Simulado** | Selector de cinco perfiles ficticios; no hay autenticación. |
 | Envío de correos | **Simulado** | Buzón visual en pantalla; no sale de la computadora. |
 | Base de datos | **Simulada** | Datos en memoria y `localStorage`; no hay PostgreSQL ni RLS activos. |
@@ -86,7 +88,7 @@ Los textos y folios usados en las pruebas OCR son **SINTÉTICOS**. No se han pro
 ## Verificación
 
 ```bash
-npm test          # 92 pruebas en 14 archivos
+npm test          # 95 pruebas en 15 archivos
 npm run lint      # sin errores
 npm run build     # correcto sin .env.local
 npm run setup:ocr # artefactos OCR locales
