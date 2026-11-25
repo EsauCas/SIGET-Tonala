@@ -1,0 +1,16 @@
+import { createBrowserClient } from '@supabase/ssr';
+import { configuracionPublica, validarConfiguracionProduccion } from '@/lib/config';
+
+let cliente: ReturnType<typeof createBrowserClient> | null = null;
+
+/** Cliente de navegador. Las operaciones siguen protegidas por RLS. */
+export function crearClienteSupabase(): ReturnType<typeof createBrowserClient> {
+  validarConfiguracionProduccion();
+  if (!cliente) {
+    cliente = createBrowserClient(
+      configuracionPublica.supabaseUrl,
+      configuracionPublica.supabaseAnonKey
+    );
+  }
+  return cliente;
+}

@@ -1,0 +1,23 @@
+import { redirect } from 'next/navigation';
+import { crearClienteSupabaseServidor } from '@/lib/supabase/server';
+
+/**
+ * Autoridad real de /admin en PROD: se lee la sesión y el rol desde Supabase.
+ * En DEMO no hay sesión de servidor y la autoridad se valida en el repositorio.
+ * Las páginas sólo llaman a esta función; no contienen compraciones de modo.
+ */
+export async function exigirAdminServidor(): Promise<void> {
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') return;
+
+  const supabase = await crearClienteSupabaseServidor();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect('/login');
+
+  const { data: fila } = await supabase
+    .from('profiles')
+    .select('rol')
+    .eq('id', data.user.id)
+    .maybeSingle();
+  const rol = (fila as { rol?: unknown } | null)?.rol;
+  if (rol !== 'admin') redirect('/');
+}

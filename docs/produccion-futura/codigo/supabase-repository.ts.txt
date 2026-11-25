@@ -1,0 +1,644 @@
+import { validarArchivoEvidencia } from '@/lib/archivos';
+import { canTransition, puedeOperarDependencia } from '@/lib/domain/estado-tramite';
+import { puedeVerFila } from '@/lib/gestion';
+import {
+  canonizarFolio,
+  canonizarNumeroControl,
+  canonizarNumeroOficio,
+  normalizarFecha,
+  normalizarHora
+} from '@/lib/ocr-parsers';
+import {
+  mapearConfiguracionSla,
+  mapearDependenciaCatalogo,
+  mapearDocumento,
+  mapearHistorial,
+  mapearNotificacion,
+  mapearPerfil,
+  mapearTramite,
+  mapearTramiteConDetalle,
+  mapearTramiteDependencia
+} from '@/lib/repository/supabase-mappers';
+import type {
+  Actor,
+  ActualizarRolUsuarioInput,
+  ActualizarSlaInput,
+  AgregarEvidenciaInput,
+  ArchivoParaSubir,
+  CrearTramiteInput,
+  DictaminarInput,
+  FiltrosTramite,
+  RegistrarAcuseInput,
+  RegistrarAcuseLoteInput,
+  RegistrarAcuseOficioInput,
+  RegistrarIntentoNotificacionInput,
+  RegistrarNotificacionInput,
+  RegistrarRecepcionInput,
+  RegistrarTurnoInput,
+  ResultadoAcuseLote,
+  ResultadoAcuseOficio,
+  ResultadoSubida,
+  TramiteRepository,
+  TurnarTramiteInput
+} from '@/lib/repository/types';
+import { crearClienteSupabase } from '@/lib/supabase/client';
+import type { ArchivoOcrParaGuardar } from '@/types/ocr';
+import type {
+  ConfiguracionSla,
+  Dependencia,
+  Documento,
+  HistorialEvento,
+  Notificacion,
+  OficioTurnado,
+  Profile,
+  Tramite,
+  TramiteConDetalle,
+  TramiteDependencia
+} from '@/types/database';
+
+type Fila = Record<string, unknown>;
+
+interface ErrorSupabase {
+  message: string;
+  code?: string | null;
+}
+
+interface RespuestaSupabase<T = unknown> {
+  data: T | null;
+  error: ErrorSupabase | null;
+}
+
+/**
+ * Vista estrecha y tipada del cliente de Supabase. El cliente real devuelve
+ * `any` en sus genéricos cuando no se usa un Database generado; aqui lo
+ * reducimos a `unknown` para que cada fila pase por un mapper validado.
+ */
+interface ConsultaSupabase extends PromiseLike<RespuestaSupabase> {
+  select(columnas?: string): ConsultaSupabase;
+  eq(columna: string, valor: unknown): ConsultaSupabase;
+  in(columna: string, valores: readonly string[]): ConsultaSupabase;
+  order(columna: string, opciones: { ascending: boolean }): ConsultaSupabase;
+  maybeSingle(): Promise<RespuestaSupabase>;
+  single(): Promise<RespuestaSupabase>;
+  insert(fila: Fila): ConsultaSupabase;
+  update(fila: Fila): ConsultaSupabase;
+}
+
+export interface ClienteSupabaseTipado {
+  from(tabla: string): ConsultaSupabase;
+  rpc(nombre: string, argumentos: Record<string, unknown>): Promise<RespuestaSupabase>;
+  storage: {
+    from(bucket: string): {
+      upload(
+        ruta: string,
+        archivo: File,
+        opciones?: { contentType?: string; upsert?: boolean }
+      ): Promise<RespuestaSupabase<{ path: string }>>;
+    };
+  };
+}
+
+const SELECCION_DETALLE = '*, tramite_dependencias(*), documentos(*)';
+
+/**
+ * Adaptador de PROD. Todas las operaciones multi-tabla se hacen mediante RPC
+ * transaccionales definidas en supabase/phase2-rpcs.sql, y la lectura depende
+ * de RLS. El rol del navegador nunca se toma como Fuente de autoridad.
+ */
+export class SupabaseRepository implements TramiteRepository {
+  /**
+   * El cliente se puede inyectar desde un Route Handler con service role para
+   * que el cron y la cola puedan operar sin depender de cookies de navegador.
+   * Sin inyección se mantiene el comportamiento original de la Fase 2.
+   */
+  constructor(private readonly clienteInyectado?: ClienteSupabaseTipado) {}
+
+  private cliente(): ClienteSupabaseTipado {
+    return this.clienteInyectado ?? (crearClienteSupabase() as unknown as ClienteSupabaseTipado);
+  }
+
+  private verificar(error: ErrorSupabase | null, contexto: string): void {
+    if (error) throw new Error(`${contexto}: ${error.message}`);
+  }
+
+  private async listar(
+    consulta: ConsultaSupabase | Promise<RespuestaSupabase>,
+    contexto: string
+  ): Promise<unknown[]> {
+    const { data, error } = await consulta;
+    this.verificar(error, contexto);
+    return Array.isArray(data) ? data : [];
+  }
+
+  private async uno(consulta: Promise<RespuestaSupabase>, contexto: string): Promise<unknown | null> {
+    const { data, error } = await consulta;
+    this.verificar(error, contexto);
+    return data ?? null;
+  }
+
+  private async invocar(
+    nombre: string,
+    argumentos: Record<string, unknown>,
+    contexto: string
+  ): Promise<unknown> {
+    const { data, error } = await this.cliente().rpc(nombre, argumentos);
+    this.verificar(error, contexto);
+    if (data === null) throw new Error(`${contexto}: el servidor no devolvió resultado.`);
+    return data;
+  }
+
+  private texto(valor: string, campo: string): string {
+    const resultado = valor.trim();
+    if (!resultado) throw new Error(`Falta ${campo}.`);
+    return resultado;
+  }
+
+  private documentoOcr(imagen: ArchivoOcrParaGuardar | undefined): Record<string, unknown> | null {
+    if (!imagen) return null;
+    if (!imagen.storagePath) {
+      throw new Error('La imagen del acuse todavía no se subió al almacenamiento.');
+    }
+    return {
+      nombre: imagen.nombre,
+      storage_path: imagen.storagePath,
+      mime: imagen.mime,
+      size_bytes: imagen.sizeBytes
+    };
+  }
+
+  async listarDependencias(): Promise<Dependencia[]> {
+    const filas = await this.listar(
+      this.cliente().from('dependencias').select('id, clave, nombre').order('nombre', { ascending: true }),
+      'No se pudieron cargar las dependencias'
+    );
+    return filas.map(mapearDependenciaCatalogo);
+  }
+
+  async listarTramites(filtros: FiltrosTramite = {}): Promise<TramiteConDetalle[]> {
+    let consulta = this.cliente()
+      .from('tramites')
+      .select(SELECCION_DETALLE)
+      .order('created_at', { ascending: false });
+
+    // RLS ya limita los renglones visibles. Estos filtros son sólo de interfaz.
+    if (filtros.ciudadanoId) consulta = consulta.eq('ciudadano_id', filtros.ciudadanoId);
+
+    const filas = await this.listar(consulta, 'No se pudieron cargar los trámites');
+    const busqueda = filtros.busqueda?.trim().toLocaleLowerCase() ?? '';
+
+    return filas
+      .map(mapearTramiteConDetalle)
+      .filter((tramite) => {
+        if (filtros.actor && !puedeVerFila(tramite, filtros.actor)) return false;
+        if (filtros.etapa && tramite.estado_general !== filtros.etapa) return false;
+        if (filtros.dependenciaId) {
+          const asignado = tramite.dependencias.some(
+            (item) => item.dependencia_id === filtros.dependenciaId
+          );
+          if (!asignado) return false;
+        }
+        if (!busqueda) return true;
+        const texto = [
+          tramite.folio,
+          tramite.numero_control,
+          tramite.nombre_contribuyente,
+          tramite.colonia,
+          tramite.giro_principal
+        ]
+          .join(' ')
+          .toLocaleLowerCase();
+        return texto.includes(busqueda);
+      });
+  }
+
+  async obtenerTramite(id: string, actor?: Actor): Promise<TramiteConDetalle | null> {
+    const fila = await this.uno(
+      this.cliente().from('tramites').select(SELECCION_DETALLE).eq('id', id).maybeSingle(),
+      'No se pudo cargar el trámite'
+    );
+    if (fila === null) return null;
+    const detalle = mapearTramiteConDetalle(fila);
+    return actor && !puedeVerFila(detalle, actor) ? null : detalle;
+  }
+
+  async crearTramite(input: CrearTramiteInput): Promise<Tramite> {
+    if (input.actor.rol !== 'ciudadano') {
+      throw new Error('Sólo la ciudadanía puede iniciar un trámite desde su sesión.');
+    }
+    if (input.dependenciasRequeridas.length === 0) {
+      throw new Error('Selecciona al menos una dependencia: Bomberos o Protección Civil.');
+    }
+
+    const fila = await this.invocar(
+      'crear_tramite_con_dependencias',
+      {
+        p_giro_principal: this.texto(input.giro_principal, 'el giro principal'),
+        p_giros_anexos: input.giros_anexos,
+        p_domicilio_negocio: this.texto(input.domicilio_negocio, 'el domicilio'),
+        p_domicilio_contribuyente: (input.domicilio_contribuyente ?? '').trim(),
+        p_fecha_solicitud: input.fecha_solicitud ?? new Date().toISOString().slice(0, 10),
+        p_colonia: this.texto(input.colonia, 'la colonia'),
+        p_cp: this.texto(input.cp, 'el código postal'),
+        p_superficie_m2: input.superficie_m2,
+        p_inversion_estimada: input.inversion_estimada,
+        p_nombre_contribuyente: this.texto(input.nombre_contribuyente, 'el nombre de la persona contribuyente'),
+        p_telefono: this.texto(input.telefono, 'el teléfono'),
+        p_dependencias: input.dependenciasRequeridas,
+        p_ciudadano_id: input.actor.id,
+        p_tipo_tramite: input.tipo_tramite
+      },
+      'No se pudo registrar el trámite'
+    );
+    return mapearTramite(fila);
+  }
+
+  private async filaDependencia(id: string): Promise<TramiteDependencia> {
+    const fila = await this.uno(
+      this.cliente().from('tramite_dependencias').select('*').eq('id', id).maybeSingle(),
+      'No se pudo leer la revisión'
+    );
+    if (fila === null) throw new Error('No encontramos esa revisión. Revisa el folio e inténtalo de nuevo.');
+    return mapearTramiteDependencia(fila);
+  }
+
+  async registrarTurno(input: RegistrarTurnoInput): Promise<TramiteDependencia> {
+    const actual = await this.filaDependencia(input.tramiteDependenciaId);
+    if (!puedeOperarDependencia(input.actor.rol, input.actor.dependencia_id, actual.dependencia_id)) {
+      throw new Error('Tu usuario no puede operar sobre esta dependencia.');
+    }
+    if (!canTransition(input.actor.rol, actual.estado, 'turnado')) {
+      throw new Error('En este momento no es posible turnar esta revisión.');
+    }
+    const fila = await this.invocar(
+      'turnar_dependencia',
+      { p_td_id: input.tramiteDependenciaId },
+      'No se pudo turnar el oficio'
+    );
+    return mapearTramiteDependencia(fila);
+  }
+
+  async turnarTramite(input: TurnarTramiteInput): Promise<TramiteDependencia[]> {
+    if (input.actor.rol !== 'secretaria') {
+      throw new Error('Solo la ventanilla puede turnar un oficio.');
+    }
+    const ids = [...new Set(input.tramiteDependenciaIds)];
+    if (ids.length === 0) throw new Error('Selecciona al menos una dependencia para turnar.');
+
+    const resultado = await this.invocar(
+      'turnar_oficio',
+      { p_td_ids: ids },
+      'No se pudo turnar el oficio'
+    );
+    if (!Array.isArray(resultado)) {
+      throw new Error('El servidor no devolvió las revisiones turnadas.');
+    }
+    return resultado.map(mapearTramiteDependencia);
+  }
+
+  async registrarAcuse(input: RegistrarAcuseInput): Promise<TramiteDependencia> {
+    if (input.actor.rol !== 'secretaria') {
+      throw new Error('Sólo la ventanilla puede registrar el acuse sellado.');
+    }
+    const fila = await this.invocar(
+      'registrar_acuse',
+      {
+        p_td_id: input.tramiteDependenciaId,
+        p_sello_folio: this.texto(input.selloFolio, 'el folio del sello'),
+        p_sello_fecha: input.selloFecha ?? null,
+        p_sello_hora: input.selloHora ?? null,
+        p_documento_id: input.documentoId ?? null
+      },
+      'No se pudo registrar el acuse'
+    );
+    return mapearTramiteDependencia(fila);
+  }
+
+  async registrarAcuseOficio(input: RegistrarAcuseOficioInput): Promise<ResultadoAcuseOficio> {
+    if (input.actor.rol !== 'secretaria') {
+      throw new Error('Sólo la ventanilla puede confirmar acuses leídos por OCR.');
+    }
+    const numero = canonizarNumeroOficio(input.numero_oficio) ?? this.texto(input.numero_oficio, 'el número de oficio');
+    const selloFolio = this.texto(input.selloFolio, 'el folio del sello');
+    const resultado = await this.invocar(
+      'registrar_acuse_oficio_ocr',
+      {
+        p_numero_oficio: numero,
+        p_sello_folio: selloFolio,
+        p_sello_fecha: normalizarFecha(input.selloFecha ?? '') || null,
+        p_sello_hora: normalizarHora(input.selloHora ?? '') || null,
+        p_documento: this.documentoOcr(input.imagen)
+      },
+      'No se pudo registrar el acuse leído'
+    );
+    if (!Array.isArray(resultado)) {
+      throw new Error('El servidor no devolvió los expedientes actualizados.');
+    }
+    const expedientes = resultado.map(mapearTramiteDependencia);
+    return {
+      numero_oficio: numero,
+      tramitesActualizados: expedientes.length,
+      expedientes,
+      aviso: `Acuse confirmado en ${expedientes.length} ${expedientes.length === 1 ? 'expediente' : 'expedientes'}. Se detuvo el reloj de entrega.`
+    };
+  }
+
+  async registrarAcuseLote(input: RegistrarAcuseLoteInput): Promise<ResultadoAcuseLote> {
+    if (input.actor.rol !== 'secretaria') {
+      throw new Error('Sólo la ventanilla puede confirmar acuses leídos por OCR.');
+    }
+    const numero = canonizarNumeroOficio(input.numero_oficio) ?? this.texto(input.numero_oficio, 'el número de oficio');
+    const acuseFolio = canonizarFolio(input.acuseFolio) ?? this.texto(input.acuseFolio, 'el folio del acuse');
+    const solicitudes = input.solicitudes.map((solicitud) => ({
+      numero_control: canonizarNumeroControl(solicitud.numero_control) ?? solicitud.numero_control.trim(),
+      folio: canonizarFolio(solicitud.folio) ?? solicitud.folio.trim(),
+      giros: solicitud.giros.map((giro) => giro.trim()).filter((giro) => giro.length > 0)
+    }));
+    const resultado = await this.invocar(
+      'registrar_acuse_lote_ocr',
+      {
+        p_numero_oficio: numero,
+        p_acuse_folio: acuseFolio,
+        p_acuse_fecha: normalizarFecha(input.acuseFecha ?? '') || null,
+        p_acuse_hora: normalizarHora(input.acuseHora ?? '') || null,
+        p_solicitudes: solicitudes,
+        p_documento: this.documentoOcr(input.imagen)
+      },
+      'No se pudo registrar el acuse en lote'
+    );
+    const datos = (resultado ?? {}) as Record<string, unknown>;
+    const faltantes = Array.isArray(datos.folios_no_encontrados)
+      ? datos.folios_no_encontrados.map((folio) => String(folio))
+      : [];
+    return {
+      numero_oficio: String(datos.numero_oficio ?? numero),
+      tramitesActualizados: Number(datos.tramites_actualizados ?? 0),
+      foliosNoEncontrados: faltantes,
+      notificaciones: Number(datos.notificaciones ?? 0),
+      reprocessado: datos.reprocessado === true,
+      aviso: String(datos.aviso ?? 'Acuse en lote registrado.')
+    };
+  }
+
+  async registrarRecepcion(input: RegistrarRecepcionInput): Promise<TramiteDependencia> {
+    const actual = await this.filaDependencia(input.tramiteDependenciaId);
+    if (!puedeOperarDependencia(input.actor.rol, input.actor.dependencia_id, actual.dependencia_id)) {
+      throw new Error('Tu usuario no puede operar sobre esta dependencia.');
+    }
+    if (!canTransition(input.actor.rol, actual.estado, 'en_inspeccion')) {
+      throw new Error('Esta revisión no puede pasar a inspección desde su estado actual.');
+    }
+    const fila = await this.invocar(
+      'registrar_recepcion',
+      { p_td_id: input.tramiteDependenciaId },
+      'No se pudo registrar la recepción'
+    );
+    return mapearTramiteDependencia(fila);
+  }
+
+  async dictaminar(input: DictaminarInput): Promise<TramiteDependencia> {
+    const actual = await this.filaDependencia(input.tramiteDependenciaId);
+    if (!puedeOperarDependencia(input.actor.rol, input.actor.dependencia_id, actual.dependencia_id)) {
+      throw new Error('Tu usuario no puede operar sobre esta dependencia.');
+    }
+    if (!canTransition(input.actor.rol, actual.estado, input.dictamen)) {
+      throw new Error('Tu usuario no puede dictaminar en este momento.');
+    }
+    if (
+      input.actor.rol === 'proteccion_civil' &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(input.fechaVisita?.trim() ?? '') ||
+        Number.isNaN(new Date(`${input.fechaVisita}T12:00:00Z`).getTime()))
+    ) {
+      throw new Error('Registra la fecha de tu visita antes de emitir el dictamen.');
+    }
+    const fila = await this.invocar(
+      'dictaminar_dependencia',
+      {
+        p_td_id: input.tramiteDependenciaId,
+        p_dictamen: input.dictamen,
+        p_motivo: input.motivo,
+        p_fecha_visita: input.fechaVisita ?? null
+      },
+      'No se pudo registrar el dictamen'
+    );
+    return mapearTramiteDependencia(fila);
+  }
+
+  async agregarEvidencia(input: AgregarEvidenciaInput): Promise<Documento> {
+    const actual = await this.filaDependencia(input.tramiteDependenciaId);
+    if (!canTransition('ciudadano', actual.estado, 'en_inspeccion')) {
+      throw new Error('La evidencia sólo se puede subir cuando el trámite está en observaciones.');
+    }
+    const problema = validarArchivoEvidencia({ type: input.mime, size: input.sizeBytes });
+    if (problema) throw new Error(problema);
+    const fila = await this.invocar(
+      'registrar_evidencia',
+      {
+        p_td_id: input.tramiteDependenciaId,
+        p_tipo: input.tipo,
+        p_storage_path: this.texto(input.storagePath, 'la ruta del archivo'),
+        p_mime: input.mime,
+        p_size_bytes: input.sizeBytes,
+        p_nombre_archivo: input.nombreArchivo
+      },
+      'No se pudo entregar la evidencia'
+    );
+    return mapearDocumento(fila);
+  }
+
+  async subirArchivo(input: ArchivoParaSubir): Promise<ResultadoSubida> {
+    const { archivo } = input;
+    const problema = validarArchivoEvidencia(archivo);
+    if (problema) throw new Error(problema);
+
+    const nombreSeguro = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+    const ruta = `${input.tramiteId}/${Date.now()}-${nombreSeguro}`;
+    const { data, error } = await this.cliente()
+      .storage.from('evidencias')
+      .upload(ruta, archivo, { contentType: archivo.type, upsert: false });
+    this.verificar(error, 'No se pudo subir el archivo');
+    if (!data) throw new Error('No se pudo subir el archivo: el servidor no devolvió confirmación.');
+
+    return {
+      storagePath: data.path,
+      mime: archivo.type,
+      sizeBytes: archivo.size,
+      nombreArchivo: archivo.name
+    };
+  }
+
+  async listarHistorial(tramiteId: string): Promise<HistorialEvento[]> {
+    const filas = await this.listar(
+      this.cliente()
+        .from('historial_eventos')
+        .select('*')
+        .eq('tramite_id', tramiteId)
+        .order('created_at', { ascending: false }),
+      'No se pudo cargar el historial'
+    );
+    return filas.map(mapearHistorial);
+  }
+
+  async listarOficios(): Promise<OficioTurnado[]> {
+    const filas = await this.listar(
+      this.cliente().from('oficios_turnados').select('*').order('fecha_emision', { ascending: false }),
+      'No se pudieron cargar los oficios'
+    );
+    return (filas as Fila[]).map((fila) => ({
+      id: String(fila.id),
+      numero_oficio: String(fila.numero_oficio),
+      fecha_emision: String(fila.fecha_emision),
+      dependencia_destino: String(fila.dependencia_destino),
+      sello_fecha: typeof fila.sello_fecha === 'string' ? fila.sello_fecha : null,
+      sello_hora: typeof fila.sello_hora === 'string' ? fila.sello_hora : null,
+      sello_folio: typeof fila.sello_folio === 'string' ? fila.sello_folio : null,
+      acuse_documento_id: typeof fila.acuse_documento_id === 'string' ? fila.acuse_documento_id : null,
+      created_by: String(fila.created_by)
+    }));
+  }
+
+  async listarDocumentos(tramiteId: string): Promise<Documento[]> {
+    const filas = await this.listar(
+      this.cliente()
+        .from('documentos')
+        .select('*')
+        .eq('tramite_id', tramiteId)
+        .order('created_at', { ascending: false }),
+      'No se pudieron cargar los documentos'
+    );
+    return filas.map(mapearDocumento);
+  }
+
+  async listarNotificaciones(): Promise<Notificacion[]> {
+    const filas = await this.listar(
+      this.cliente()
+        .from('notificaciones')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      'No se pudieron cargar las notificaciones'
+    );
+    return filas.map(mapearNotificacion);
+  }
+
+  async registrarNotificacion(input: RegistrarNotificacionInput): Promise<Notificacion> {
+    const fila = await this.invocar(
+      'registrar_notificacion',
+      {
+        p_tramite_id: input.tramiteId,
+        p_destinatario: this.texto(input.destinatario, 'el destinatario'),
+        p_plantilla: input.plantilla,
+        p_asunto: input.asunto,
+        p_clave_idempotencia: input.claveIdempotencia
+      },
+      'No se pudo registrar la notificación'
+    );
+    return mapearNotificacion(fila);
+  }
+
+  async encolarNotificacion(input: RegistrarNotificacionInput): Promise<Notificacion> {
+    return this.registrarNotificacion(input);
+  }
+
+  async listarConfiguracionSla(): Promise<ConfiguracionSla[]> {
+    const filas = await this.listar(
+      this.cliente().from('configuracion_sla').select('*').order('dependencia_id', { ascending: true }),
+      'No se pudo cargar la configuración de plazos'
+    );
+    return filas.map(mapearConfiguracionSla);
+  }
+
+  async actualizarConfiguracionSla(input: ActualizarSlaInput): Promise<ConfiguracionSla> {
+    if (input.actor.rol !== 'admin') {
+      throw new Error('Sólo la administración puede cambiar los plazos.');
+    }
+    if (
+      input.horasLimite <= 0 ||
+      input.horasAlertaPrevia <= 0 ||
+      input.horasAlertaPrevia >= input.horasLimite
+    ) {
+      throw new Error('El aviso debe ser menor al límite y ambos deben ser mayores a cero.');
+    }
+    const fila = await this.uno(
+      this.cliente()
+        .from('configuracion_sla')
+        .update({
+          horas_limite: input.horasLimite,
+          horas_alerta_previa: input.horasAlertaPrevia,
+          tipo_horas: input.tipoHoras
+        })
+        .eq('id', input.id)
+        .select()
+        .single(),
+      'No se pudo actualizar la configuración de plazos'
+    );
+    if (fila === null) throw new Error('No existe esa configuración de plazos.');
+    return mapearConfiguracionSla(fila);
+  }
+
+  async listarNotificacionesPendientes(): Promise<Notificacion[]> {
+    const filas = await this.listar(
+      this.cliente()
+        .from('notificaciones')
+        .select('*')
+        .in('estado', ['pendiente', 'error'])
+        .order('created_at', { ascending: true }),
+      'No se pudieron cargar las notificaciones pendientes'
+    );
+    return filas.map(mapearNotificacion);
+  }
+
+  async marcarIntentoNotificacion(
+    input: RegistrarIntentoNotificacionInput
+  ): Promise<Notificacion> {
+    const fila = await this.invocar(
+      'marcar_intento_notificacion',
+      {
+        p_id: input.id,
+        p_estado: input.estado,
+        p_intentos: input.intentos,
+        p_error_motivo: input.errorMotivo,
+        p_enviado_at: input.enviadoAt,
+        p_cuerpo: input.cuerpo,
+        p_enviado_a: input.enviadoA,
+        p_destinatario_original: input.destinatarioOriginal
+      },
+      'No se pudo registrar el intento de envío'
+    );
+    return mapearNotificacion(fila);
+  }
+
+  async reintentarNotificacion(claveIdempotencia: string): Promise<Notificacion | null> {
+    const fila = await this.uno(
+      this.cliente()
+        .from('notificaciones')
+        .update({ estado: 'pendiente', intentos: 0, error_motivo: null, enviado_at: null })
+        .eq('clave_idempotencia', claveIdempotencia)
+        .select()
+        .single(),
+      'No se pudo preparar el reintento'
+    );
+    return fila === null ? null : mapearNotificacion(fila);
+  }
+
+  async listarUsuarios(): Promise<Profile[]> {
+    const filas = await this.listar(
+      this.cliente().from('profiles').select('id, nombre, email, rol, dependencia_id').order('nombre', { ascending: true }),
+      'No se pudieron cargar los usuarios'
+    );
+    return filas.map(mapearPerfil);
+  }
+
+  async actualizarRolUsuario(input: ActualizarRolUsuarioInput): Promise<Profile> {
+    if (input.actor.rol !== 'admin') {
+      throw new Error('Sólo la administración puede cambiar roles.');
+    }
+    if (input.id === input.actor.id && input.rol !== input.actor.rol) {
+      throw new Error('No puedes cambiar tu propio rol.');
+    }
+    const fila = await this.invocar(
+      'actualizar_rol_usuario',
+      { p_id: input.id, p_rol: input.rol },
+      'No se pudo actualizar el rol'
+    );
+    return mapearPerfil(fila);
+  }
+}

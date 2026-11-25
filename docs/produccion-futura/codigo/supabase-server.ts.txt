@@ -1,0 +1,26 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { configuracionPublica, validarConfiguracionProduccion } from '@/lib/config';
+
+/** Cliente de servidor para Route Handlers; refresca cookies de sesión. */
+export async function crearClienteSupabaseServidor(): Promise<ReturnType<typeof createServerClient>> {
+  validarConfiguracionProduccion();
+  const cookiesDisponibles = await cookies();
+
+  return createServerClient(configuracionPublica.supabaseUrl, configuracionPublica.supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookiesDisponibles.getAll();
+      },
+      setAll(cambios) {
+        for (const cambio of cambios) {
+          try {
+            cookiesDisponibles.set(cambio.name, cambio.value, cambio.options);
+          } catch {
+            // Los cookies solo se pueden escribir en Route Handlers / Server Actions.
+          }
+        }
+      }
+    }
+  });
+}

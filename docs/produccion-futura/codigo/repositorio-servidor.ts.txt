@@ -1,0 +1,27 @@
+import { createClient } from '@supabase/supabase-js';
+import type { ClienteSupabaseTipado } from '@/lib/repository/supabase-repository';
+import type { TramiteRepository } from '@/lib/repository/types';
+
+/**
+ * Repositorio para Route Handlers. En PROD usa service role para que el cron
+ * pueda leer y marcar notificaciones sin cookies de navegador. La decisión de
+ * modo se escribe directamente para que Next elimine la rama demo del bundle.
+ */
+export async function crearRepositorioServidor(): Promise<TramiteRepository> {
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    const { DemoRepository } = await import('@/lib/repository/demo-repository');
+    return new DemoRepository();
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const claveServicio = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !claveServicio) {
+    throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en el servidor.');
+  }
+
+  const { SupabaseRepository } = await import('@/lib/repository/supabase-repository');
+  const cliente = createClient(url, claveServicio, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  }) as unknown as ClienteSupabaseTipado;
+  return new SupabaseRepository(cliente);
+}

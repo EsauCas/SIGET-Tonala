@@ -1,0 +1,209 @@
+import type {
+  ConfiguracionSla,
+  Dependencia,
+  Documento,
+  EtapaGeneral,
+  EstadoDependencia,
+  EstadoNotificacion,
+  HistorialEvento,
+  Notificacion,
+  Profile,
+  Rol,
+  TipoDocumento,
+  TipoHoras,
+  Tramite,
+  TramiteConDetalle,
+  TramiteDependencia
+} from '@/types/database';
+
+type Fila = Record<string, unknown>;
+
+const ETAPAS: readonly EtapaGeneral[] = ['recepcion', 'turnado', 'verificacion', 'observaciones', 'aprobado'];
+const ESTADOS_DEPENDENCIA: readonly EstadoDependencia[] = [
+  'pendiente',
+  'turnado',
+  'en_inspeccion',
+  'observaciones',
+  'aprobado',
+  'rechazado'
+];
+const ROLES: readonly Rol[] = ['ciudadano', 'secretaria', 'bomberos', 'proteccion_civil', 'admin'];
+const TIPOS_DOCUMENTO: readonly TipoDocumento[] = [
+  'solicitud',
+  'identificacion',
+  'evidencia',
+  'acuse',
+  'dictamen',
+  'otro'
+];
+const ESTADOS_NOTIFICACION: readonly EstadoNotificacion[] = ['pendiente', 'enviado', 'error'];
+const TIPOS_HORAS: readonly TipoHoras[] = ['naturales', 'habiles'];
+
+function cadena(valor: unknown, campo: string): string {
+  if (typeof valor !== 'string') throw new Error(`Respuesta inválida de Supabase en ${campo}.`);
+  return valor;
+}
+
+function cadenaOpcional(valor: unknown): string | null {
+  return typeof valor === 'string' ? valor : null;
+}
+
+function numero(valor: unknown, campo: string): number {
+  const resultado = typeof valor === 'number' ? valor : typeof valor === 'string' ? Number(valor) : Number.NaN;
+  if (!Number.isFinite(resultado)) throw new Error(`Respuesta inválida de Supabase en ${campo}.`);
+  return resultado;
+}
+
+function textoEnum<T extends string>(valor: unknown, permitidos: readonly T[], campo: string): T {
+  const texto = cadena(valor, campo);
+  const coincidente = permitidos.find((opcion) => opcion === texto);
+  if (coincidente === undefined) {
+    throw new Error(`Valor inesperado en ${campo}: ${texto}`);
+  }
+  return coincidente;
+}
+
+function arregloTexto(valor: unknown): string[] {
+  if (!Array.isArray(valor)) return [];
+  return valor.filter((item): item is string => typeof item === 'string');
+}
+
+export function fila(objeto: unknown): Fila {
+  if (typeof objeto !== 'object' || objeto === null) {
+    throw new Error('Supabase devolvió una fila vacía.');
+  }
+  return objeto as Fila;
+}
+
+export function mapearDependenciaCatalogo(valor: unknown): Dependencia {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'dependencias.id'),
+    clave: textoEnum(item.clave, ['bomberos', 'proteccion_civil', 'ventanilla'] as const, 'dependencias.clave'),
+    nombre: cadena(item.nombre, 'dependencias.nombre')
+  };
+}
+
+export function mapearPerfil(valor: unknown): Profile {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'profiles.id'),
+    nombre: cadena(item.nombre, 'profiles.nombre'),
+    email: cadena(item.email, 'profiles.email'),
+    rol: textoEnum(item.rol, ROLES, 'profiles.rol'),
+    dependencia_id: cadenaOpcional(item.dependencia_id)
+  };
+}
+
+export function mapearTramite(valor: unknown): Tramite {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'tramites.id'),
+    folio: cadena(item.folio, 'tramites.folio'),
+    numero_control: cadena(item.numero_control, 'tramites.numero_control'),
+    ciudadano_id: cadena(item.ciudadano_id, 'tramites.ciudadano_id'),
+    tipo_tramite: cadena(item.tipo_tramite, 'tramites.tipo_tramite'),
+    giro_principal: cadena(item.giro_principal, 'tramites.giro_principal'),
+    giros_anexos: arregloTexto(item.giros_anexos),
+    domicilio_negocio: cadena(item.domicilio_negocio, 'tramites.domicilio_negocio'),
+    domicilio_contribuyente: cadena(item.domicilio_contribuyente, 'tramites.domicilio_contribuyente'),
+    fecha_solicitud: cadena(item.fecha_solicitud, 'tramites.fecha_solicitud'),
+    colonia: cadena(item.colonia, 'tramites.colonia'),
+    cp: cadena(item.cp, 'tramites.cp'),
+    superficie_m2: numero(item.superficie_m2, 'tramites.superficie_m2'),
+    inversion_estimada: numero(item.inversion_estimada, 'tramites.inversion_estimada'),
+    nombre_contribuyente: cadena(item.nombre_contribuyente, 'tramites.nombre_contribuyente'),
+    telefono: cadena(item.telefono, 'tramites.telefono'),
+    estado_general: textoEnum(item.estado_general, ETAPAS, 'tramites.estado_general'),
+    created_at: cadena(item.created_at, 'tramites.created_at'),
+    updated_at: cadena(item.updated_at, 'tramites.updated_at')
+  };
+}
+
+export function mapearTramiteDependencia(valor: unknown): TramiteDependencia {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'tramite_dependencias.id'),
+    tramite_id: cadena(item.tramite_id, 'tramite_dependencias.tramite_id'),
+    dependencia_id: cadena(item.dependencia_id, 'tramite_dependencias.dependencia_id'),
+    estado: textoEnum(item.estado, ESTADOS_DEPENDENCIA, 'tramite_dependencias.estado'),
+    turnado_at: cadenaOpcional(item.turnado_at),
+    acuse_at: cadenaOpcional(item.acuse_at),
+    dictamen_at: cadenaOpcional(item.dictamen_at),
+    dictamen: cadenaOpcional(item.dictamen),
+    motivo: cadenaOpcional(item.motivo),
+    oficio_id: cadenaOpcional(item.oficio_id),
+    sla_horas: numero(item.sla_horas, 'tramite_dependencias.sla_horas'),
+    pausado_desde: cadenaOpcional(item.pausado_desde),
+    horas_pausadas: numero(item.horas_pausadas, 'tramite_dependencias.horas_pausadas'),
+    fecha_visita: cadenaOpcional(item.fecha_visita)
+  };
+}
+
+export function mapearDocumento(valor: unknown): Documento {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'documentos.id'),
+    tramite_id: cadena(item.tramite_id, 'documentos.tramite_id'),
+    tipo: textoEnum(item.tipo, TIPOS_DOCUMENTO, 'documentos.tipo'),
+    storage_path: cadena(item.storage_path, 'documentos.storage_path'),
+    mime: cadena(item.mime, 'documentos.mime'),
+    size_bytes: numero(item.size_bytes, 'documentos.size_bytes'),
+    created_by: cadena(item.created_by, 'documentos.created_by'),
+    created_at: cadena(item.created_at, 'documentos.created_at')
+  };
+}
+
+export function mapearHistorial(valor: unknown): HistorialEvento {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'historial_eventos.id'),
+    tramite_id: cadena(item.tramite_id, 'historial_eventos.tramite_id'),
+    actor_id: cadena(item.actor_id, 'historial_eventos.actor_id'),
+    actor_rol: textoEnum(item.actor_rol, ROLES, 'historial_eventos.actor_rol'),
+    accion: cadena(item.accion, 'historial_eventos.accion'),
+    datos_antes: cadenaOpcional(item.datos_antes),
+    datos_despues: cadenaOpcional(item.datos_despues),
+    created_at: cadena(item.created_at, 'historial_eventos.created_at')
+  };
+}
+
+export function mapearNotificacion(valor: unknown): Notificacion {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'notificaciones.id'),
+    tramite_id: cadena(item.tramite_id, 'notificaciones.tramite_id'),
+    destinatario: cadena(item.destinatario, 'notificaciones.destinatario'),
+    plantilla: cadena(item.plantilla, 'notificaciones.plantilla'),
+    asunto: cadena(item.asunto, 'notificaciones.asunto'),
+    estado: textoEnum(item.estado, ESTADOS_NOTIFICACION, 'notificaciones.estado'),
+    error_motivo: cadenaOpcional(item.error_motivo),
+    clave_idempotencia: cadena(item.clave_idempotencia, 'notificaciones.clave_idempotencia'),
+    intentos: numero(item.intentos, 'notificaciones.intentos'),
+    created_at: cadena(item.created_at, 'notificaciones.created_at'),
+    enviado_at: cadenaOpcional(item.enviado_at),
+    cuerpo: cadenaOpcional(item.cuerpo),
+    enviado_a: cadenaOpcional(item.enviado_a),
+    destinatario_original: cadenaOpcional(item.destinatario_original)
+  };
+}
+
+export function mapearConfiguracionSla(valor: unknown): ConfiguracionSla {
+  const item = fila(valor);
+  return {
+    id: cadena(item.id, 'configuracion_sla.id'),
+    dependencia_id: cadena(item.dependencia_id, 'configuracion_sla.dependencia_id'),
+    horas_limite: numero(item.horas_limite, 'configuracion_sla.horas_limite'),
+    tipo_horas: textoEnum(item.tipo_horas, TIPOS_HORAS, 'configuracion_sla.tipo_horas'),
+    horas_alerta_previa: numero(item.horas_alerta_previa, 'configuracion_sla.horas_alerta_previa')
+  };
+}
+
+export function mapearTramiteConDetalle(valor: unknown): TramiteConDetalle {
+  const item = fila(valor);
+  const dependencias = Array.isArray(item.tramite_dependencias)
+    ? item.tramite_dependencias.map(mapearTramiteDependencia)
+    : [];
+  const documentos = Array.isArray(item.documentos) ? item.documentos.map(mapearDocumento) : [];
+  return { ...mapearTramite(valor), dependencias, documentos };
+}

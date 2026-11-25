@@ -1,0 +1,175 @@
+import { Resend } from 'resend';
+import { CONFIGURACION_PREDETERMINADA } from '@/lib/domain/sla';
+import { adaptadorCola } from '@/lib/notificaciones/adaptador';
+import { calcularRecordatorios, type EntradaRecordatorio } from '@/lib/notificaciones/recordatorios';
+import {
+  procesarCola,
+  type CorreoParaEnviar,
+  type EnviadorCorreo,
+  type OpcionesCola,
+  type ResultadoCola
+} from '@/lib/notificaciones/servicio';
+import { enviadorSimulado } from '@/lib/notificaciones/simulado';
+import { crearEstadoSemilla } from '@/lib/repository/demo-seed';
+import { crearRepositorioServidor } from '@/lib/repository/servidor';
+import { mapearPerfil } from '@/lib/repository/supabase-mappers';
+import type { Actor } from '@/lib/repository/types';
+import { crearClienteSupabaseServidor } from '@/lib/supabase/server';
+import type { ConfiguracionSla } from '@/types/database';
+
+interface SesionApi {
+  actor: Actor;
+  esDemo: boolean;
+}
+
+/** Modo resuelto sólo en servidor; ningún componente lee esta variable. */
+export function esDemoServidor(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+}
+
+/**
+ * Sesión verificada en servidor. En PROD viene de Supabase Auth y de `profiles`;
+ * en DEMO el identificador de perfil se valida contra la semilla, nunca se
+ * confía en un rol enviado por el navegador.
+ */
+export async function obtenerSesionApi(solicitud: Request): Promise<SesionApi | null> {
+  if (esDemoServidor()) {
+    const id = solicitud.headers.get('x-perfil-demo')?.trim();
+    if (!id) return null;
+    const perfil = crearEstadoSemilla().profiles.find((item) => item.id === id);
+    if (!perfil) return null;
+    return {
+      actor: { id: perfil.id, rol: perfil.rol, dependencia_id: perfil.dependencia_id },
+      esDemo: true
+    };
+  }
+
+  try {
+    const supabase = await crearClienteSupabaseServidor();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return null;
+    const { data: fila } = await supabase
+      .from('profiles')
+      .select('id, nombre, email, rol, dependencia_id')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (!fila) return null;
+    const perfil = mapearPerfil(fila);
+    return {
+      actor: { id: perfil.id, rol: perfil.rol, dependencia_id: perfil.dependencia_id },
+      esDemo: false
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Sin dominio verificado, Resend gratuito sólo entrega al correo de la cuenta. */
+export function destinoFallback(): string | null {
+  if (process.env.RESEND_DOMAIN_VERIFICADO === 'true') return null;
+  return process.env.NOTIFY_FALLBACK_EMAIL?.trim() || null;
+}
+
+function enviadorResend(): EnviadorCorreo {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM?.trim();
+  if (!apiKey || !from) {
+    throw new Error('Faltan RESEND_API_KEY o RESEND_FROM en el servidor.');
+  }
+  const resend = new Resend(apiKey);
+  return {
+    async enviar(correo: CorreoParaEnviar): Promise<void> {
+      const respuesta = await resend.emails.send({
+        from,
+        to: correo.destinatario,
+        subject: correo.asunto,
+        text: correo.texto,
+        html: correo.html
+      });
+      if (respuesta.error) throw new Error(respuesta.error.message);
+    }
+  };
+}
+
+export async function procesarCorreosServidor(
+  opciones: OpcionesCola = {}
+): Promise<ResultadoCola> {
+  const repositorio = await crearRepositorioServidor();
+  const enviador = esDemoServidor() ? enviadorSimulado : enviadorResend();
+  return procesarCola(adaptadorCola(repositorio), enviador, {
+    ...opciones,
+    redirigirA: opciones.redirigirA ?? destinoFallback() ?? undefined,
+    esDemo: esDemoServidor()
+  });
+}
+
+export interface ResultadoRecordatorios {
+  planeados: number;
+  claves: string[];
+  envios: ResultadoCola;
+}
+
+/** Encola los avisos SLA que tocan hoy y procesa la cola resultante. */
+export async function encolarRecordatoriosServidor(
+  ahora: Date = new Date()
+): Promise<ResultadoRecordatorios> {
+  const repositorio = await crearRepositorioServidor();
+  const [tramites, dependencias, configuraciones] = await Promise.all([
+    repositorio.listarTramites(),
+    repositorio.listarDependencias(),
+    repositorio.listarConfiguracionSla()
+  ]);
+
+  const entradas: EntradaRecordatorio[] = [];
+  for (const tramite of tramites) {
+    for (const renglon of tramite.dependencias) {
+      if (!renglon.turnado_at) continue;
+      const configuracion: ConfiguracionSla =
+        configuraciones.find((item) => item.dependencia_id === renglon.dependencia_id) ?? {
+          id: '',
+          dependencia_id: renglon.dependencia_id,
+          ...CONFIGURACION_PREDETERMINADA
+        };
+      entradas.push({
+        tramite,
+        renglon,
+        dependencia: dependencias.find((item) => item.id === renglon.dependencia_id),
+        configuracion
+      });
+    }
+  }
+
+  const planeados = calcularRecordatorios(entradas, ahora);
+  for (const aviso of planeados) {
+    await repositorio.registrarNotificacion({
+      tramiteId: aviso.tramiteId,
+      destinatario: aviso.destinatario,
+      plantilla: aviso.plantilla,
+      asunto: aviso.asunto,
+      cuerpo: aviso.cuerpo,
+      claveIdempotencia: aviso.claveIdempotencia
+    });
+  }
+
+  const envios = await procesarCorreosServidor({ esDemo: esDemoServidor() });
+  return { planeados: planeados.length, claves: planeados.map((item) => item.claveIdempotencia), envios };
+}
+
+/**
+ * Un funcionario sólo puede pedir correos de expedientes que puede ver. La
+ * validación se repite en servidor con el mismo actor que usa RLS en PROD.
+ */
+export async function verificarAlcance(
+  repositorio: Awaited<ReturnType<typeof crearRepositorioServidor>>,
+  actor: Actor,
+  claveIdempotencia?: string
+): Promise<boolean> {
+  if (actor.rol === 'secretaria' || actor.rol === 'admin') return true;
+  const notificaciones = await repositorio.listarNotificaciones();
+  const objetivo = claveIdempotencia
+    ? notificaciones.find((item) => item.clave_idempotencia === claveIdempotencia)
+    : undefined;
+  if (!objetivo) return false;
+  const tramite = await repositorio.obtenerTramite(objetivo.tramite_id, actor);
+  return tramite !== null;
+}
