@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Vacio } from '@/components/EstadosVista';
+import { BOTON_PRIMARIO } from '@/components/layout/estilos';
 
 /** Esta instalación no tiene contraseñas: se entra con el selector de perfiles. */
 export function LoginForm() {
@@ -10,10 +11,7 @@ export function LoginForm() {
       titulo="Entra con un perfil de demostración"
       mensaje="Esta ejecución no usa contraseñas. Elige uno de los cinco perfiles que aparecen arriba y regresa al inicio para ver su panel."
     >
-      <Link
-        href="/"
-        className="mt-4 inline-flex min-h-control items-center rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white"
-      >
+      <Link href="/" className={`${BOTON_PRIMARIO} mt-4`}>
         Ir al inicio
       </Link>
     </Vacio>

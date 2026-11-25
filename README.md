@@ -41,7 +41,7 @@ No hay `.env.local` obligatorio. No hay que crear proyectos en la nube ni copiar
 3. **Turnar (1 min).** Cambia a «Secretaría · Ventanilla». En `/gestion`, turna el nuevo expediente a Bomberos y Protección Civil. Se genera un número de oficio y cada dependencia tiene su propio reloj.
 4. **Acuse OCR (1 min).** Sube una imagen de prueba en el panel de acuse. La lectura propone folio, fecha y hora; edita lo que quieras y confirma. Nada se guarda sin esa confirmación. Si no hay cámara o se deniega, usa «Elegir imagen» o «Capturar datos a mano».
 5. **Dictaminar y semáforo (1 min).** Cambia a Bomberos, registra recepción y emite un dictamen. Cambia a Protección Civil y deja el expediente en observaciones: el semáforo se pone rojo aunque la otra dependencia haya aprobado. La ciudadanía sube evidencia y vuelve a ámbar.
-6. **SLA y correos (30 s).** Entra como Administración. Pulsa «Avanzar 48 h» y luego «Enviar recordatorios SLA». Aparece el aviso con «Ver correo»: se abre el HTML institucional dentro de un iframe aislado. «Restablecer reloj» y «Reiniciar datos de demostración» devuelven todo al inicio.
+6. **Tiempo de respuesta y correos (30 s).** Entra como Administración. Pulsa «Avanzar 48 h» y luego «Enviar recordatorios de tiempo de respuesta». Aparece el aviso con «Ver correo»: se abre el HTML institucional dentro de un iframe aislado. «Restablecer reloj» y «Reiniciar datos de demostración» devuelven todo al inicio.
 
 Semilla lista para mostrar sin hacer nada: 12 expedientes, los 5 colores del semáforo, un trámite con Bomberos aprobado y Protección Civil en observaciones, un vencido y uno por vencer.
 

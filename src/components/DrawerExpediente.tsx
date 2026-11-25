@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Aviso, Cargando, fechaLegible } from '@/components/EstadosVista';
 import { EtiquetaEstado } from '@/components/TramiteLista';
@@ -16,12 +16,12 @@ import type {
 
 const ACCIONES: Readonly<Record<string, string>> = {
   tramite_creado: 'Se registró la solicitud',
-  turnado_registrado: 'Se turnó el oficio',
-  acuse_registrado: 'Se registró el acuse sellado',
-  recepcion_registrada: 'La dependencia confirmó la recepción',
-  dictamen_registrado: 'Se registró un dictamen',
-  evidencia_entregada: 'La persona entregó evidencia',
-  recordatorio_sla: 'Se envió un recordatorio'
+  turnado_registrado: 'Se envió el oficio a revisión',
+  acuse_registrado: 'Se registró la constancia de recibido',
+  recepcion_registrada: 'La dependencia confirmó que recibió los documentos',
+  dictamen_registrado: 'Se registró el resultado de la revisión',
+  evidencia_entregada: 'La persona entregó un documento',
+  recordatorio_sla: 'Se envió un recordatorio del tiempo de respuesta'
 };
 
 interface DatosExpediente {
@@ -76,21 +76,21 @@ export function DrawerExpediente({ tramiteId, catalogo, onCerrar }: DrawerExpedi
         role="dialog"
         aria-modal="true"
         aria-labelledby="expediente-titulo"
-        className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l-4 border-enfasis bg-white p-5"
+        className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l-8 border-barro bg-superficie p-5"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 id="expediente-titulo" className="text-2xl font-bold text-tinta">Expediente</h2>
-            {datos && <p className="text-lg text-tinta">Folio {datos.tramite.folio}</p>}
+            <h2 id="expediente-titulo" className="text-2xl font-bold text-cafe">Expediente</h2>
+            {datos && <p className="mt-1 text-lg font-semibold text-tinta">Folio {datos.tramite.folio}</p>}
           </div>
           <button
             type="button"
             data-inicial
             onClick={onCerrar}
             aria-label="Cerrar expediente"
-            className="min-h-tactil rounded-control border-2 border-slate-500 bg-white px-4 py-2 text-lg font-bold text-tinta"
+            className="inline-flex min-h-tactil items-center gap-2 rounded-control border-2 border-bordeCampo bg-papel px-4 py-2 text-lg font-bold text-tinta"
           >
-            <X aria-hidden="true" className="inline h-6 w-6" /> Cerrar
+            <X aria-hidden="true" className="h-6 w-6 shrink-0" /> Cerrar
           </button>
         </div>
 
@@ -101,8 +101,8 @@ export function DrawerExpediente({ tramiteId, catalogo, onCerrar }: DrawerExpedi
         {datos && (
           <div className="mt-5 grid gap-6">
             <section aria-labelledby="exp-datos">
-              <h3 id="exp-datos" className="text-xl font-bold text-tinta">Datos de la solicitud</h3>
-              <dl className="mt-2 grid gap-2 text-lg text-tinta">
+              <h3 id="exp-datos" className="text-xl font-bold text-cafe">Datos de la solicitud</h3>
+              <dl className="mt-3 grid gap-3 text-lg leading-relaxed text-tinta">
                 <div><dt className="font-bold">Persona contribuyente:</dt> <dd>{datos.tramite.nombre_contribuyente}</dd></div>
                 <div><dt className="font-bold">Tipo de trámite:</dt> <dd>{datos.tramite.tipo_tramite}</dd></div>
                 <div><dt className="font-bold">Giro:</dt> <dd>{datos.tramite.giro_principal}</dd></div>
@@ -113,10 +113,10 @@ export function DrawerExpediente({ tramiteId, catalogo, onCerrar }: DrawerExpedi
             </section>
 
             <section aria-labelledby="exp-dependencias">
-              <h3 id="exp-dependencias" className="text-xl font-bold text-tinta">Revisión por dependencia</h3>
-              <ul className="mt-2 grid gap-2">
+              <h3 id="exp-dependencias" className="text-xl font-bold text-cafe">Revisión por dependencia</h3>
+              <ul className="mt-3 grid gap-3">
                 {datos.tramite.dependencias.map((item) => (
-                  <li key={item.id} className="rounded-control border-2 border-slate-300 bg-lienzo p-3 text-lg text-tinta">
+                  <li key={item.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                     <strong>{nombreDependencia(item.dependencia_id, catalogo)}:</strong>{' '}
                     {item.estado.replaceAll('_', ' ')}
                     {item.fecha_visita && <> · Visita: {item.fecha_visita}</>}
@@ -127,13 +127,16 @@ export function DrawerExpediente({ tramiteId, catalogo, onCerrar }: DrawerExpedi
             </section>
 
             <section aria-labelledby="exp-documentos">
-              <h3 id="exp-documentos" className="text-xl font-bold text-tinta">Documentos adjuntos</h3>
+              <h3 id="exp-documentos" className="text-xl font-bold text-cafe">Documentos adjuntos</h3>
               {datos.documentos.length === 0 ? (
-                <p className="mt-2 text-lg text-tinta">No hay documentos registrados.</p>
+                <p className="mt-3 flex items-start gap-3 rounded-control border-l-8 border-semaforo-gris bg-semaforo-fondo-gris p-4 text-lg leading-relaxed text-tinta">
+                  <Info aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" />
+                  No hay documentos registrados.
+                </p>
               ) : (
-                <ul className="mt-2 grid gap-2">
+                <ul className="mt-3 grid gap-3">
                   {datos.documentos.map((doc) => (
-                    <li key={doc.id} className="rounded-control border border-slate-300 bg-lienzo p-3 text-lg text-tinta">
+                    <li key={doc.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                       {doc.tipo.replaceAll('_', ' ')} · {doc.mime} · {fechaLegible(doc.created_at)}
                     </li>
                   ))}
@@ -142,8 +145,8 @@ export function DrawerExpediente({ tramiteId, catalogo, onCerrar }: DrawerExpedi
             </section>
 
             <section aria-labelledby="exp-historial">
-              <h3 id="exp-historial" className="text-xl font-bold text-tinta">Historial reciente</h3>
-              <ol className="mt-2 grid gap-2 border-l-4 border-enfasis pl-4">
+              <h3 id="exp-historial" className="text-xl font-bold text-cafe">Historial reciente</h3>
+              <ol className="mt-3 grid gap-3 border-l-8 border-barro pl-4">
                 {datos.historial.map((evento) => (
                   <li key={evento.id} className="text-lg leading-relaxed text-tinta">
                     <strong>{ACCIONES[evento.accion] ?? evento.accion}</strong>

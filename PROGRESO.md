@@ -2,7 +2,7 @@
 
 **Última actualización:** 2026-11-25
 **Estado general:** aplicación **congelada como demostración única**. No hay Supabase, Resend, autenticación real ni rutas `/api/*`. La interfaz, los datos, los correos y el reloj viven en el navegador. La arquitectura de producción se conserva sólo como documentación en `docs/produccion-futura/`.
-**Fase actual:** Fase 8 (congelación demo, reloj controlable, documentación y verificación) completada. El historial de entrega cubre las fases 1-6 y el cierre 8; no hay un bloque numerado como Fase 7 en este repositorio.
+**Fase actual:** Fase 9 (rediseño visual y usabilidad para adultos mayores) en cierre. El historial de entrega cubre las fases 1-6, el cierre 8 y el rediseño 9; no hay un bloque numerado como Fase 7 en este repositorio.
 
 Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · Tailwind 3.4 · tesseract.js v5 local · Vitest. Sin variables de entorno obligatorias, sin secretos, sin `// TODO` y sin botones decorativos. Los estados de carga, error, vacío y éxito están presentes en las vistas.
 
@@ -18,7 +18,8 @@ Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · T
 | 4 · `/gestion` | Bandeja por rol, turnado, acuses, recepción, dictámenes, recordatorios, diálogos accesibles y cajón de expediente. | Vigente. Todas las acciones operan sobre `localStorage` y validan rol en el repositorio. |
 | 5 · OCR | Parsers A/B/C puros, confianza por campo, revisión editable y confirmación humana. Tesseract local sin CDN. | Vigente. Textos SINTÉTICOS; cámara o archivo, con captura manual si falla. |
 | 6 · Correos y auditoría | Plantillas HTML, cola idempotente, recordatorios, métricas, historial global y panel de administración. | Vigente en cliente. Se eliminaron Resend, `/api/notify`, `/api/cron/sla` y el cron de Vercel; los recordatorios los dispara el botón de la demo. |
-| 8 · Congelación demo | Un solo modo, sin dependencias de nube, reloj controlable, vista de correo segura, documentación y verificación sin `.env.local`. | **Completada.** Detalle abajo. |
+| 8 · Congelación demo | Un solo modo, sin dependencias de nube, reloj controlable, vista de correo segura, documentación y verificación sin `.env.local`. | Completada. Detalle abajo. |
+| 9 · Rediseño accesible | Identidad Tonalá (café, barro, alfarería), encabezado único, tamaño de letra persistido, migas, shell de páginas, microcopy ciudadano y prueba de contraste. | **Sólo presentación:** sin cambios de lógica, repositorios, OCR, estados, SLA, rutas ni permisos. |
 
 ---
 
@@ -32,7 +33,7 @@ Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · T
 - **Sin servicios externos en `src/`.** Eliminados los imports de `@supabase/*` y `resend` y sus dependencias en `package.json`/`package-lock.json`. Eliminados `src/middleware.ts`, `src/app/api/sesion`, `src/app/api/notify`, `src/app/api/cron/sla` y los adaptadores/clientes de servidor. Los artefactos correspondientes están en `docs/produccion-futura/{sql,codigo,config}` como texto de referencia; no se compilan ni se importan.
 - **Selector de perfiles.** `DemoControls`, `DemoProfileSelector` y `LoginForm` permiten cambiar entre `ciudadano`, `secretaria`, `bomberos`, `proteccion_civil` y `admin`. No hay contraseñas: es un cambio de perfil ficticio.
 - **Reloj de demostración.** `src/lib/reloj-demo.ts` centraliza `now()`, `ahoraDemo()`, `avanzarRelojDemo(horas)`, `reiniciarRelojDemo()` y la suscripción de eventos; persistencia en `siget-tonala:demo:reloj:v2`. `src/components/useRelojDemo.ts` suscribe las vistas con `useSyncExternalStore`. Todos los cálculos de SLA, métricas, recordatorios, semáforo y sellos usan ese reloj.
-- **Controles de demostración en `/admin`.** «Avanzar 24 h», «Avanzar 48 h», «Avanzar 72 h», «Restablecer reloj», «Enviar recordatorios SLA» y «Reiniciar datos de demostración». Cada acción avisa por `aria-live` y el reinicio restaura semilla **y** reloj.
+- **Controles de demostración en `/admin`.** «Avanzar 24 h», «Avanzar 48 h», «Avanzar 72 h», «Restablecer reloj», «Enviar recordatorios de tiempo de respuesta» y «Reiniciar datos de demostración». Cada acción avisa por `aria-live` y el reinicio restaura semilla **y** reloj.
 - **Persistencia versionada.** `DemoRepository` guarda en `siget-tonala:demo` con `version: 2`; si la versión no coincide, vuelve a sembrar. Expone `estadoAlmacenamiento()` y muestra un mensaje claro si `localStorage` está lleno o deshabilitado, sin perder el expediente en curso.
 - **Semilla lista para presentar.** 12 expedientes, 5 perfiles y 3 dependencias (Ventanilla, Bomberos, Protección Civil). Incluye los 5 colores del semáforo, un trámite con Bomberos aprobado y Protección Civil en observaciones (rojo aunque una dependencia aprobó), un vencido y uno por vencer. Los correos semilla tienen HTML institucional.
 - **Vista previa de correo.** `src/components/VistaCorreo.tsx` abre un diálogo accesible con el HTML real de la plantilla dentro de un iframe con `srcDoc` y `sandbox=""`. Integrado en el toast (`EmailLogToast`), el historial y `/admin`. No hay botones que no hagan nada.
@@ -58,6 +59,37 @@ Reglas vigentes: Next.js 15 (App Router) · React 19 · TypeScript estricto · T
 **Traslados a `docs/produccion-futura/`:** `sql/schema.sql`, `sql/phase2-rpcs.sql`, `codigo/*.ts.txt` (clientes, mappers, repositorio, autorización y notificaciones de servidor), `config/.env.example.txt`, `config/vercel.json.txt`.
 
 **Eliminados del árbol compilable:** `src/middleware.ts`, `src/app/api/**`, `src/lib/supabase/**`, `src/lib/repository/supabase-repository.ts`, `src/lib/repository/supabase-mappers.ts`, `src/lib/repository/servidor.ts`, `src/lib/autorizacion-servidor.ts`, `src/lib/notificaciones/servidor.ts`, `vercel.json`, `.env.example`.
+
+---
+
+## Fase 9 — Rediseño visual y usabilidad (completada en código)
+
+**Objetivo:** hacer la demostración más legible y fácil de seguir para adultos mayores y personas con baja alfabetización digital, con identidad de Tonalá (café, barro, alfarería). **Sólo presentación:** no se cambiaron repositorios, OCR, máquina de estados, SLA, rutas ni permisos.
+
+### Entregado
+
+- **Identidad y tokens.** `tailwind.config.ts` y `src/lib/tokens-diseno.ts` son la única fuente de papel `#FBF5EC`, superficie `#FFFFFF`, tinta `#2B1810`, café `#4A2C1A`, barro `#8F3A18`, barro oscuro `#6E2B10`, ocre `#E8B04B`, arena `#D9C3A5`, borde de campo `#7A5C45` y foco `#0B3D91`. La arena se usa sólo como divisoria decorativa (`aria-hidden`), sin texto encima.
+- **Contraste medible.** `src/lib/__tests__/contraste.test.ts` recorre todos los pares definidos: texto ≥ 7:1 (AAA) y bordes/foco ≥ 3:1. Se evitó texto blanco sobre el azul funcional anterior: el semáforo usa texto oscuro sobre fondos claros.
+- **Encabezado único.** En todas las rutas: wordmark «SIGET Tonalá», subtítulo «Padrón y Licencias», indicador «Estás como: …», selector de perfil de prueba, navegación siempre visible, control «Tamaño de letra» (Normal / Grande / Muy grande) persistido en `siget-tonala:tamano-letra`, skip-link «Ir al contenido» y migas de pan fuera de Inicio.
+- **Molde de página.** `PageShell` muestra título, frase «¿Qué puedo hacer aquí?», como máximo una acción principal, secciones separadas con `SeccionCard` y estados vacíos con `MensajeVacio`. El pie «Sistema de demostración. Todos los datos son ficticios.» permanece global.
+- **Semáforo accesible.** Fondo claro, franja gruesa, ícono, etiqueta textual y «Paso X de 5»; el motivo del rechazo u observaciones se lee en texto. El estado nunca depende sólo del color.
+- **Microcopy ciudadano.** «SLA» → «tiempo de respuesta»; «dictamen» → «resultado de la revisión»; «turnar» → «enviar a revisión»; «acuse» → «constancia de recibido». Se conservan literales que aparecen en pruebas existentes.
+- **Lectura y touch.** Base 18 px, escalado de raíz a 125 % y 150 %, `leading-relaxed`, botones/campos de 52 px (44 px en tablas densas), separaciones de 12 px o más, foco cobalto de 3 px, `aria-live`, mensajes de error en lenguaje claro, `(obligatorio)` visible y `prefers-reduced-motion`.
+- **OCR sin cambios de autoridad.** Cada campo muestra su confianza y lleva la etiqueta exacta «Requiere validación» cuando es baja (< 80 %) o falta. La captura manual sigue disponible sin bloquear el flujo y ningún resultado se guarda sin confirmación humana. Hay un solo indicador de pasos por pantalla.
+
+### Decisiones de la fase
+
+1. **Un solo sistema de color.** Los aliases heredados (`enfasis`, `lienzo`, `slate`, azules/ámbar/rojo/verde de Tailwind) desaparecieron del árbol compilable; los componentes consumen los tokens en español.
+2. **Color + forma + palabra.** Las franjas anchas, íconos y etiquetas acompañan al color en estados y avisos.
+3. **Arena decorativa.** No se coloca texto sobre `#D9C3A5`; sus usos son `aria-hidden` y no cuentan para el contraste de componentes activos.
+4. **Cero cambios de dominio.** El escalado de texto y el reestilo no alteran datos ni transiciones: el comportamiento de la Fase 8 queda intacto.
+5. **Verificación manual explícita.** No hay navegador ni cámara en el entorno de entrega; los pasos de escritorio, móvil, zoom y teclado quedan descritos abajo y deben ejecutarse con `npm run dev`.
+
+### Manifiesto de Fase 9
+
+**Creados:** `src/lib/tokens-diseno.ts`, `src/lib/__tests__/contraste.test.ts`, `src/components/layout/Header.tsx`, `ControlTamanoLetra.tsx`, `PerfilDemo.tsx`, `MigasPan.tsx`, `PageShell.tsx`, `SeccionCard.tsx`, `TarjetaAccion.tsx`, `IndicadorPasos.tsx`, `MensajeVacio.tsx` y `estilos.ts`.
+
+**Modificados:** `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`, `src/components/Navbar.tsx`, `src/components/pages/InicioPorRol.tsx`, `SeccionTramites.tsx`, `GestionTramites.tsx`, `HistorialGlobal.tsx`, `AdminPanel.tsx`, `ListadoTramites.tsx`, `src/components/AsistenteTramite.tsx`, `CamposSolicitud.tsx`, `GuiaLicencias.tsx`, `SemaforoTramite.tsx`, `OcrScanner.tsx`, `AcuseIndividualPanel.tsx`, `AcuseLotePanel.tsx`, `DetalleTramite.tsx`, `DrawerExpediente.tsx`, `DialogoConfirmacion.tsx`, `EstadosVista.tsx`, `EmailLogToast.tsx`, `VistaCorreo.tsx`, `TramiteLista.tsx`, `LoginForm.tsx`, `SubirEvidencia.tsx`, `DemoResetButton.tsx`, `src/components/demo/DemoProfileSelector.tsx`, `src/app/login/page.tsx`, `src/app/tramites/nuevo/page.tsx`, `src/app/tramites/[id]/page.tsx`, `README.md` y este `PROGRESO.md`.
 
 ---
 
@@ -100,11 +132,23 @@ Estos pasos **no se ejecutaron con herramientas automáticas** (no hay navegador
 
 1. **Perfiles y semáforo.** Cambiar entre los cinco perfiles. Confirmar que el semáforo muestra color + ícono + etiqueta + «Paso X de 5», nunca sólo color, y que los cinco colores aparecen en la semilla.
 2. **Conflicto de dependencias.** Abrir el expediente semilla con Bomberos aprobado y Protección Civil en observaciones: debe estar en rojo con motivo. Como ciudadanía, subir evidencia: vuelve a ámbar. No debe existir un botón de evidencia para el perfil de Bomberos.
-3. **Reloj y SLA.** Como administración, anotar las horas de un expediente por vencer; pulsar «Avanzar 48 h» y comprobar que pasa a vencido. Pulsar «Enviar recordatorios SLA», ver el toast con «Ver correo» y abrir la vista previa: el iframe no debe permitir scripts ni navegación. Pulsar el mismo botón otra vez: no debe duplicarse la notificación. «Restablecer reloj» devuelve la hora real.
+3. **Reloj y tiempo de respuesta.** Como administración, anotar las horas de un expediente por vencer; pulsar «Avanzar 48 h» y comprobar que pasa a vencido. Pulsar «Enviar recordatorios de tiempo de respuesta», ver el toast con «Ver correo» y abrir la vista previa: el iframe no debe permitir scripts ni navegación. Pulsar el mismo botón otra vez: no debe duplicarse la notificación. «Restablecer reloj» devuelve la hora real.
 4. **Persistencia y reinicio.** Recargar la página: el desplazamiento del reloj y los cambios deben continuar. Pulsar «Reiniciar datos de demostración»: deben volver los 12 expedientes iniciales y el reloj real.
 5. **OCR sin internet.** Con `npm run setup:ocr` ya ejecutado, usar una imagen local generada con los textos sintéticos de las pruebas. Revisar confianza por campo, «Requiere validación» y edición manual. Denegar el permiso de cámara y comprobar que «Elegir imagen» y «Capturar datos a mano» siguen funcionando. Sin conexión, la lectura debe terminar igual.
 6. **Teclado y móvil.** Recorrer avec skip-link, selector, controles de reloj y diálogos con Tab/Shift+Tab/Esc; el foco debe ser visible y volver al origen. Reducir la ventana a menos de 768 px: sin desbordamiento horizontal, tablas convertidas en tarjetas y objetivos táctiles conservados.
 7. **Pie y correos.** Comprobar el pie «Sistema de demostración. Todos los datos son ficticios.» en todas las rutas y que los correos del historial y del panel abren la misma vista previa segura.
+
+### Fase 9: comprobación manual de 5 tareas
+
+Repite cada tarea en cuatro condiciones: **(A)** 1280 px con «Normal»; **(B)** 360 px; **(C)** zoom del navegador al 200 %; **(D)** «Muy grande» desde el encabezado. Después haz un recorrido completo **sólo con teclado** (Tab, Shift+Tab, Enter/Espacio y Esc). En todos los casos comprueba: skip-link «Ir al contenido» al enfocarlo, foco cobalto visible, sin desbordamiento horizontal de la página, avisos anunciados por `aria-live`, ninguna pista dada sólo por hover y lenguaje sin jerga.
+
+1. **Iniciar un trámite (Ciudadanía).** Desde Inicio pulsa «Iniciar un trámite». Prueba «Capturar datos a mano» y comprueba etiquetas arriba, ayuda corta, `(obligatorio)` visible, un solo indicador «Paso 1 de 3» y errores en texto claro si dejas campos vacíos. Con imagen local, revisa que cada campo muestre su confianza y «Requiere validación» cuando corresponda; edita un dato y confirma. Debe aparecer el folio y un aviso de éxito.
+2. **Ver cómo va y qué sigue (Ciudadanía).** Abre el expediente desde `/tramites`. El semáforo debe mostrar franja gruesa, ícono, etiqueta, «Paso X de 5» y «Lo que sigue: …». Cambia a un expediente observado, rechazado y aprobado: el motivo se lee en texto, nunca sólo por color.
+3. **Subir una constancia con el escáner (Ventanilla).** En `/gestion`, abre el panel de constancia de recibido y usa una imagen local. Confirma que la lectura propone folio, fecha y hora con su confianza, que los campos son editables y que «Requiere validación» aparece en los datos dudosos. Guarda sólo después de confirmar; comprueba la ruta alterna «Capturar datos a mano» sin cámara.
+4. **Enviar a revisión (Ventanilla).** En `/gestion`, selecciona un expediente listo y pulsa «Enviar a revisión». Deben generarse el oficio y un reloj por dependencia; el texto «turnar» no debe aparecer como acción. El diálogo debe anunciar el resultado por `aria-live` y devolver el foco al origen al cerrarse con Esc.
+5. **Dar el resultado de la revisión (Bomberos).** Cambia el perfil desde el encabezado («Estás como: …»). En `/gestion` confirma que Bomberos sólo ve y opera sus expedientes: «Recibimos los documentos» y después «Resultado de la revisión». Registra una observación con motivo; vuelve como Ciudadanía y sube evidencia: el semáforo cambia a ámbar sin perder el motivo en el historial.
+
+Para terminar, en `/admin` pulsa «Enviar recordatorios de tiempo de respuesta» dos veces y comprueba que no se duplica; verifica las migas de pan en `/tramites/nuevo` y `/gestion`, y que el pie de datos ficticios aparece en las cinco rutas.
 
 ---
 

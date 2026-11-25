@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Cargando, ErrorVista, Vacio } from '@/components/EstadosVista';
+import { CLASE_ETIQUETA } from '@/components/layout/estilos';
 import { ListaTramites } from '@/components/TramiteLista';
 import { useRepository } from '@/components/RepositoryProvider';
 import type { FiltrosTramite } from '@/lib/repository/types';
@@ -18,7 +19,7 @@ const ETAPAS: readonly { valor: EtapaGeneral | ''; etiqueta: string }[] = [
 ];
 
 const CLASE_CONTROL =
-  'min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-4 py-3 text-lg text-tinta sm:w-auto';
+  'min-h-control w-full rounded-control border-2 border-bordeCampo bg-superficie px-4 py-3 text-lg leading-relaxed text-tinta sm:w-auto';
 
 /** Listado filtrable. RLS limita los renglones que cada rol puede ver. */
 export function ListadoTramites() {
@@ -56,12 +57,14 @@ export function ListadoTramites() {
 
   return (
     <section aria-labelledby="listado-tramites-titulo" className="mx-auto w-full max-w-6xl px-5 py-10">
-      <h2 id="listado-tramites-titulo" className="text-2xl font-bold text-tinta">Mis trámites</h2>
-      <p className="mt-2 text-lg text-tinta">Busca por folio, colonia, giro o nombre de la persona.</p>
+      <h2 id="listado-tramites-titulo" className="text-2xl font-bold text-cafe">Mis trámites</h2>
+      <p className="mt-3 text-lg leading-relaxed text-tinta">
+        Busca por folio, colonia, giro o nombre de la persona.
+      </p>
 
-      <div className="mt-6 grid gap-3 rounded-control border-2 border-slate-300 bg-white p-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-3 rounded-control border-2 border-arena bg-superficie p-4 sm:grid-cols-2">
         <div>
-          <label className="block text-lg font-semibold text-tinta" htmlFor="buscar-tramite">Buscar</label>
+          <label className={CLASE_ETIQUETA} htmlFor="buscar-tramite">Buscar</label>
           <input
             id="buscar-tramite"
             className={`${CLASE_CONTROL} mt-2`}
@@ -71,7 +74,7 @@ export function ListadoTramites() {
           />
         </div>
         <div>
-          <label className="block text-lg font-semibold text-tinta" htmlFor="filtrar-etapa">Etapa</label>
+          <label className={CLASE_ETIQUETA} htmlFor="filtrar-etapa">Etapa</label>
           <select
             id="filtrar-etapa"
             className={`${CLASE_CONTROL} mt-2`}
@@ -97,7 +100,9 @@ export function ListadoTramites() {
           />
         ) : (
           <>
-            <p aria-live="polite" className="text-lg text-tinta">{tramites.length} trámite(s) encontrado(s).</p>
+            <p aria-live="polite" className="text-lg font-semibold text-tinta">
+              {tramites.length} trámite(s) encontrado(s).
+            </p>
             <ListaTramites tramites={tramites} />
           </>
         )}

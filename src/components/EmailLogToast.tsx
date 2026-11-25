@@ -94,7 +94,7 @@ export function EmailLogToast() {
       {avisos.map((aviso) => (
         <div
           key={aviso.id}
-          className={`rounded-control border-4 bg-white p-4 shadow-lg ${
+          className={`rounded-control border-l-8 bg-superficie p-4 shadow-lg ${
             aviso.estado === 'enviado' ? 'border-semaforo-verde' : 'border-semaforo-rojo'
           }`}
         >
@@ -103,13 +103,13 @@ export function EmailLogToast() {
               <p className="text-lg font-bold text-tinta">
                 {aviso.estado === 'enviado' ? 'Correo enviado' : 'No se pudo enviar el correo'}
               </p>
-              <p className="mt-1 break-words text-base text-tinta">Asunto: {aviso.asunto}</p>
-              <p className="mt-1 break-words text-base text-tinta">
+              <p className="mt-2 break-words text-lg leading-relaxed text-tinta">Asunto: {aviso.asunto}</p>
+              <p className="mt-2 break-words text-lg leading-relaxed text-tinta">
                 Para: {aviso.destinatario}
                 {aviso.enviadoA !== aviso.destinatario && ` · Enviado a: ${aviso.enviadoA}`}
               </p>
               {aviso.errorMotivo && (
-                <p className="mt-1 break-words text-base text-tinta">Motivo: {aviso.errorMotivo}</p>
+                <p className="mt-2 break-words text-lg leading-relaxed text-tinta">Motivo: {aviso.errorMotivo}</p>
               )}
               <VistaCorreo
                 asunto={aviso.asunto}
@@ -125,7 +125,7 @@ export function EmailLogToast() {
                 if (evento.key === 'Escape') descartar(aviso.id);
               }}
               aria-label={`Descartar aviso: ${aviso.asunto}`}
-              className="inline-flex min-h-tactil min-w-[44px] shrink-0 items-center justify-center rounded-control border-2 border-slate-400 p-2 text-tinta hover:bg-slate-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-enfasis"
+              className="inline-flex min-h-tactil min-w-[44px] shrink-0 items-center justify-center rounded-control border-2 border-bordeCampo bg-papel p-2 text-tinta focus-visible:outline focus-visible:outline-4 focus-visible:outline-foco"
             >
               <X aria-hidden="true" className="h-5 w-5" />
             </button>

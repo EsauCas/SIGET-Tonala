@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useCorreos } from '@/components/EmailLogToast';
 import { Aviso } from '@/components/EstadosVista';
+import { IndicadorPasos } from '@/components/layout/IndicadorPasos';
+import { BOTON_PRIMARIO, BOTON_SECUNDARIO } from '@/components/layout/estilos';
 import { CamposSolicitud } from '@/components/CamposSolicitud';
 import { OcrScanner } from '@/components/OcrScanner';
 import { useRepository } from '@/components/RepositoryProvider';
@@ -185,8 +187,8 @@ export function AsistenteTramite() {
 
   if (creado) {
     return (
-      <section aria-labelledby="alta-exitosa" className="rounded-control border-4 border-semaforo-verde bg-green-50 p-6">
-        <h2 id="alta-exitosa" className="text-2xl font-bold text-semaforo-verde">
+      <section aria-labelledby="alta-exitosa" className="rounded-control border-l-8 border-semaforo-verde bg-semaforo-fondo-verde p-6">
+        <h2 id="alta-exitosa" className="text-2xl font-bold text-tinta">
           Tu solicitud quedó registrada
         </h2>
         <p className="mt-2 text-lg leading-relaxed text-tinta">
@@ -202,13 +204,13 @@ export function AsistenteTramite() {
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={`/tramites/${creado.id}`}
-            className="inline-flex min-h-control items-center rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
+            className={BOTON_PRIMARIO}
           >
             Ver mi solicitud
           </Link>
           <Link
             href="/"
-            className="inline-flex min-h-control items-center rounded-control border-2 border-slate-400 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+            className={BOTON_SECUNDARIO}
           >
             Volver al inicio
           </Link>
@@ -219,28 +221,15 @@ export function AsistenteTramite() {
 
   return (
     <section id="asistente" aria-labelledby="asistente-titulo" className="grid gap-5">
-      <div className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <p aria-live="polite" className="text-lg font-bold text-enfasis">
-          Paso {paso} de 3 · {PASOS[paso - 1]}
-        </p>
-        <ol className="mt-3 grid grid-cols-3 gap-2 text-base font-semibold text-tinta">
-          {PASOS.map((etiqueta, indice) => (
-            <li
-              key={etiqueta}
-              aria-current={paso === indice + 1 ? 'step' : undefined}
-              className={`rounded-control border-2 p-2 text-center ${
-                paso === indice + 1 ? 'border-enfasis bg-blue-50' : 'border-slate-300'
-              }`}
-            >
-              {indice + 1}. {etiqueta}
-            </li>
-          ))}
-        </ol>
+      <div>
+        <div aria-live="polite">
+          <IndicadorPasos pasos={PASOS} pasoActual={paso} />
+        </div>
         <h2
           id="asistente-titulo"
           ref={tituloRef}
           tabIndex={-1}
-          className="mt-5 text-2xl font-bold text-tinta focus:outline-none focus:ring-4 focus:ring-enfasis"
+          className="mt-5 text-2xl font-bold text-cafe focus:outline-none focus:ring-4 focus:ring-foco"
         >
           {paso === 1
             ? 'Paso 1: Escanear o capturar'
@@ -270,7 +259,7 @@ export function AsistenteTramite() {
           {revisionOcr && (revisionOcr.faltantes.length > 0 || revisionOcr.advertencias.length > 0) && (
             <section
               aria-labelledby="revision-ocr-titulo"
-              className="rounded-control border-2 border-semaforo-ambar bg-amber-50 p-4"
+              className="rounded-control border-l-8 border-semaforo-ambar bg-semaforo-fondo-ambar p-4"
             >
               <h3 id="revision-ocr-titulo" className="text-xl font-bold text-tinta">
                 Datos que necesitan tu revisión
@@ -306,14 +295,14 @@ export function AsistenteTramite() {
             <button
               type="button"
               onClick={() => setPaso(1)}
-              className="min-h-control rounded-control border-2 border-slate-400 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+              className={BOTON_SECUNDARIO}
             >
               Atrás
             </button>
             <button
               type="button"
               onClick={avanzar}
-              className="min-h-control rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
+              className={BOTON_PRIMARIO}
             >
               Revisar mis datos
             </button>
@@ -340,7 +329,7 @@ export function AsistenteTramite() {
               type="button"
               disabled={guardando}
               onClick={() => setPaso(2)}
-              className="min-h-control rounded-control border-2 border-slate-400 bg-white px-6 py-3 text-lg font-semibold text-tinta disabled:opacity-60"
+              className={`${BOTON_SECUNDARIO} disabled:opacity-60`}
             >
               Atrás
             </button>
@@ -348,7 +337,7 @@ export function AsistenteTramite() {
               type="button"
               disabled={guardando}
               onClick={() => void guardar()}
-              className="min-h-control rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white disabled:opacity-60"
+              className={`${BOTON_PRIMARIO} disabled:opacity-60`}
             >
               {guardando ? 'Guardando tu solicitud...' : 'Guardar mi solicitud'}
             </button>
@@ -365,7 +354,7 @@ function Resumen({ forma }: { forma: Readonly<DatosSolicitud> }) {
     .join(' y ');
 
   return (
-    <dl className="grid gap-2 rounded-control border-2 border-enfasis bg-blue-50 p-4 text-lg text-tinta">
+    <dl className="grid gap-2 rounded-control border-l-8 border-barro bg-papel p-4 text-lg text-tinta">
       <div>
         <dt className="font-semibold">Persona contribuyente:</dt>
         <dd>{forma.nombre_contribuyente || 'Sin capturar'}</dd>
@@ -395,7 +384,7 @@ function Resumen({ forma }: { forma: Readonly<DatosSolicitud> }) {
 
 function DatosGenerados({ forma }: { forma: Readonly<DatosSolicitud> }) {
   return (
-    <dl className="grid gap-2 rounded-control border-2 border-slate-300 bg-lienzo p-4 text-lg text-tinta">
+    <dl className="grid gap-2 rounded-control border-2 border-arena bg-papel p-4 text-lg text-tinta">
       <div>
         <dt className="font-semibold">Folio:</dt>
         <dd>Se asigna solo al guardar.</dd>

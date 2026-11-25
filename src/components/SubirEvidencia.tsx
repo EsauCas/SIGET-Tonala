@@ -1,8 +1,15 @@
 'use client';
 
+import { AlertTriangle, Info } from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Aviso } from '@/components/EstadosVista';
+import {
+  BOTON_PRIMARIO,
+  CLASE_CAMPO,
+  CLASE_ETIQUETA,
+  CLASE_ERROR
+} from '@/components/layout/estilos';
 import { useRepository } from '@/components/RepositoryProvider';
 import { validarArchivoEvidencia } from '@/lib/archivos';
 import { canTransition } from '@/lib/domain/estado-tramite';
@@ -92,7 +99,8 @@ export function SubirEvidencia({
 
   if (!puedeSubir) {
     return (
-      <p className="rounded-control border-2 border-slate-400 bg-white p-4 text-lg leading-relaxed text-tinta">
+      <p className="flex items-start gap-3 rounded-control border-l-8 border-semaforo-gris bg-semaforo-fondo-gris p-4 text-lg leading-relaxed text-tinta">
+        <Info aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" />
         {nombreDependencia} no está esperando documentos en este momento.
       </p>
     );
@@ -102,23 +110,24 @@ export function SubirEvidencia({
   const idError = `error-evidencia-${dependencia.id}`;
 
   return (
-    <div className="grid gap-3 rounded-control border-2 border-semaforo-rojo bg-red-50 p-4">
-      <label className="text-lg font-semibold text-tinta" htmlFor={idArchivo}>
-        Entrega el documento que pide {nombreDependencia}
+    <div className="grid gap-3 rounded-control border-2 border-l-8 border-arena border-l-semaforo-rojo bg-semaforo-fondo-rojo p-4">
+      <label className={CLASE_ETIQUETA} htmlFor={idArchivo}>
+        Entrega el documento que pide {nombreDependencia} (obligatorio)
       </label>
       <input
         id={idArchivo}
         type="file"
         accept="application/pdf,image/jpeg,image/png"
-        className="min-h-control rounded-control border-2 border-slate-400 bg-white p-3 text-lg text-tinta"
+        className={CLASE_CAMPO}
         onChange={seleccionar}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? idError : undefined}
       />
-      <p className="text-lg text-tinta">PDF, JPG o PNG. Máximo 5 MB.</p>
+      <p className="text-lg font-semibold text-tinta">PDF, JPG o PNG. Máximo 5 MB.</p>
 
       {error && (
-        <p id={idError} role="alert" className="text-lg font-semibold text-peligro">
+        <p id={idError} role="alert" className={`${CLASE_ERROR} flex items-start gap-2`}>
+          <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" />
           {error}
         </p>
       )}
@@ -128,7 +137,7 @@ export function SubirEvidencia({
         type="button"
         disabled={ocupado}
         onClick={() => void entregar()}
-        className="min-h-control rounded-control bg-semaforo-rojo px-6 py-3 text-lg font-bold text-white disabled:opacity-60"
+        className={`${BOTON_PRIMARIO} disabled:cursor-not-allowed disabled:border-2 disabled:border-arena disabled:bg-arena disabled:text-tinta`}
       >
         {ocupado ? 'Entregando documento...' : 'Entregar documento y continuar revisión'}
       </button>

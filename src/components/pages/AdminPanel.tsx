@@ -1,11 +1,28 @@
 'use client';
 
-import { BellRing, Clock3, RotateCcw } from 'lucide-react';
+import {
+  BellRing,
+  Clock3,
+  Mail,
+  RotateCcw,
+  ShieldCheck,
+  Stamp,
+  UsersRound
+} from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useCorreos } from '@/components/EmailLogToast';
-import { Aviso, Cargando, ErrorVista, Vacio, fechaLegible } from '@/components/EstadosVista';
+import { Aviso, Cargando, ErrorVista, fechaLegible } from '@/components/EstadosVista';
+import { PageShell } from '@/components/layout/PageShell';
+import { SeccionCard } from '@/components/layout/SeccionCard';
+import { MensajeVacio } from '@/components/layout/MensajeVacio';
+import {
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  CLASE_CAMPO,
+  CLASE_ETIQUETA
+} from '@/components/layout/estilos';
 import { useRepository } from '@/components/RepositoryProvider';
 import { useRelojDemo } from '@/components/useRelojDemo';
 import { VistaCorreo } from '@/components/VistaCorreo';
@@ -110,12 +127,20 @@ export function AdminPanel() {
 
   if (perfil && perfil.rol !== 'admin') {
     return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-10">
-        <Vacio
-          titulo="Esta sección es sólo para administración"
-          mensaje="Tu usuario no tiene permisos para cambiar la configuración. Puedes consultar el resto del sistema con normalidad."
+      <PageShell
+        titulo="Esta sección es sólo para administración"
+        descripcion="Tu perfil no puede cambiar la configuración. Puedes consultar el resto del sistema con normalidad."
+      >
+        <MensajeVacio
+          titulo="No hay cambios que hacer aquí"
+          descripcion="Si necesitas ajustar plazos o roles, pide apoyo a la persona administradora."
+          accion={
+            <Link href="/" className={BOTON_PRIMARIO}>
+              Volver al inicio
+            </Link>
+          }
         />
-      </main>
+      </PageShell>
     );
   }
 
@@ -280,41 +305,50 @@ export function AdminPanel() {
   }
 
   if (cargando) {
-    return <main className="mx-auto w-full max-w-6xl px-5 py-10"><Cargando mensaje="Cargando la configuración..." /></main>;
+    return (
+      <PageShell titulo="Preparando la administración" descripcion="Estamos cargando perfiles, plazos y correos.">
+        <Cargando mensaje="Cargando la configuración..." />
+      </PageShell>
+    );
   }
   if (error) {
-    return <main className="mx-auto w-full max-w-6xl px-5 py-10"><ErrorVista mensaje={error} onReintentar={() => void cargar()} /></main>;
+    return (
+      <PageShell titulo="No pudimos cargar la administración" descripcion="Tus datos siguen guardados. Inténtalo otra vez.">
+        <ErrorVista mensaje={error} onReintentar={() => void cargar()} />
+      </PageShell>
+    );
   }
 
   const maxHoras = Math.max(1, ...metricas.map((item) => item.horasMaximas));
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-10">
-      <h1 className="text-3xl font-bold text-tinta">Administración</h1>
-      <p className="mt-2 text-lg leading-relaxed text-tinta">
-        Configura roles y plazos, revisa los correos y consulta los tiempos de respuesta.
-        Los cambios quedan registrados en el historial.
-      </p>
+    <PageShell
+      titulo="Administración"
+      descripcion="¿Qué puedo hacer aquí? Ajusta roles y tiempos límite, revisa los correos simulados y consulta la espera de cada dependencia. Los cambios quedan registrados."
+    >
       <Aviso mensaje={mensaje} exito={exito} />
 
-      <section aria-labelledby="controles-demo" className="mt-6 rounded-control border-2 border-enfasis bg-white p-5">
-        <h2 id="controles-demo" className="text-2xl font-bold text-tinta">Controles de demostración</h2>
-        <p className="mt-2 text-lg leading-relaxed text-tinta">
-          La hora actual de la demo es {fechaLegible(ahora.toISOString())}. Adelanta el reloj para ver cómo cambian
-          los plazos sin esperar días reales. Nadie recibe correos fuera de esta computadora.
+      <SeccionCard
+        numero={1}
+        titulo="Controles de demostración"
+        descripcion="Adelanta el reloj para ver cómo cambian los plazos sin esperar días reales. Nadie recibe correos fuera de esta computadora."
+        icono={<Clock3 aria-hidden="true" className="h-7 w-7" />}
+      >
+        <p className="rounded-control border-l-8 border-barro bg-papel px-4 py-3 text-lg font-bold text-tinta">
+          Hora de la demostración: {fechaLegible(ahora.toISOString())}
         </p>
-        <p className="mt-2 text-lg leading-relaxed text-tinta">
+        <p className="mt-4 text-lg leading-relaxed text-tinta">
           {almacenamiento?.disponible === false
             ? almacenamiento.mensaje
             : 'Los cambios se guardan en este navegador. Si cierras la pestaña, puedes reiniciarlos aquí.'}
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
             disabled={guardando !== null}
             onClick={() => avanzarReloj(24)}
-            className="inline-flex min-h-control items-center gap-3 rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60"
+            className={`${BOTON_PRIMARIO} disabled:opacity-60`}
           >
             <Clock3 aria-hidden="true" className="h-5 w-5" />
             Avanzar 24 h
@@ -323,7 +357,7 @@ export function AdminPanel() {
             type="button"
             disabled={guardando !== null}
             onClick={() => avanzarReloj(48)}
-            className="inline-flex min-h-control items-center gap-3 rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60"
+            className={`${BOTON_PRIMARIO} disabled:opacity-60`}
           >
             <Clock3 aria-hidden="true" className="h-5 w-5" />
             Avanzar 48 h
@@ -332,7 +366,7 @@ export function AdminPanel() {
             type="button"
             disabled={guardando !== null}
             onClick={() => avanzarReloj(72)}
-            className="inline-flex min-h-control items-center gap-3 rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60"
+            className={`${BOTON_PRIMARIO} disabled:opacity-60`}
           >
             <Clock3 aria-hidden="true" className="h-5 w-5" />
             Avanzar 72 h
@@ -341,7 +375,7 @@ export function AdminPanel() {
             type="button"
             disabled={guardando !== null}
             onClick={restablecerReloj}
-            className="inline-flex min-h-control items-center gap-3 rounded-control border-2 border-enfasis bg-white px-5 py-3 text-lg font-semibold text-enfasis disabled:opacity-60"
+            className={`${BOTON_SECUNDARIO} disabled:opacity-60`}
           >
             <Clock3 aria-hidden="true" className="h-5 w-5" />
             Restablecer reloj
@@ -350,33 +384,40 @@ export function AdminPanel() {
             type="button"
             disabled={guardando !== null}
             onClick={() => void enviarRecordatorios()}
-            className="inline-flex min-h-control items-center gap-3 rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60"
+            className={`${BOTON_PRIMARIO} disabled:opacity-60`}
           >
             <BellRing aria-hidden="true" className="h-5 w-5" />
-            {guardando === 'recordatorios' ? 'Enviando recordatorios...' : 'Enviar recordatorios SLA'}
+            {guardando === 'recordatorios' ? 'Enviando recordatorios...' : 'Enviar recordatorios de tiempo de respuesta'}
           </button>
           <button
             type="button"
             disabled={guardando !== null}
             onClick={() => void reiniciarDatos()}
-            className="inline-flex min-h-control items-center gap-3 rounded-control border-2 border-enfasis bg-white px-5 py-3 text-lg font-semibold text-enfasis disabled:opacity-60"
+            className={`${BOTON_SECUNDARIO} disabled:opacity-60`}
           >
             <RotateCcw aria-hidden="true" className="h-5 w-5" />
             {guardando === 'reiniciar' ? 'Reiniciando datos...' : 'Reiniciar datos de demostración'}
           </button>
         </div>
-      </section>
+      </SeccionCard>
 
-      <section aria-labelledby="usuarios" className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="usuarios" className="text-2xl font-bold text-tinta">Usuarios y roles</h2>
+      <SeccionCard
+        numero={2}
+        titulo="Usuarios y roles"
+        descripcion="El rol se guarda en el perfil y no puede cambiarlo la persona usuaria."
+        icono={<UsersRound aria-hidden="true" className="h-7 w-7" />}
+      >
         {usuarios.length === 0 ? (
-          <p className="mt-2 text-lg text-tinta">No hay usuarios registrados.</p>
+          <MensajeVacio
+            titulo="No hay usuarios registrados"
+            descripcion="Cuando haya perfiles en la demostración, aparecerán aquí para asignar su rol."
+          />
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] border-collapse text-left text-lg text-tinta">
-              <caption className="pb-2 text-left text-base text-tinta">El rol se guarda en el perfil y no puede cambiarlo la persona usuaria.</caption>
+              <caption className="pb-3 text-left text-base text-tinta">Selecciona el rol y guarda para aplicar el cambio.</caption>
               <thead>
-                <tr className="border-b-2 border-slate-400">
+                <tr className="border-b-4 border-arena">
                   <th scope="col" className="py-2 pr-3">Nombre</th>
                   <th scope="col" className="py-2 pr-3">Correo</th>
                   <th scope="col" className="py-2 pr-3">Rol</th>
@@ -385,14 +426,14 @@ export function AdminPanel() {
               </thead>
               <tbody>
                 {usuarios.map((usuario) => (
-                  <tr key={usuario.id} className="border-b border-slate-300">
-                    <td className="py-2 pr-3">{usuario.nombre}</td>
-                    <td className="py-2 pr-3 break-all">{usuario.email}</td>
-                    <td className="py-2 pr-3">
+                  <tr key={usuario.id} className="border-b-2 border-arena">
+                    <td className="py-3 pr-3 font-semibold">{usuario.nombre}</td>
+                    <td className="py-3 pr-3 break-all">{usuario.email}</td>
+                    <td className="py-3 pr-3">
                       <label className="sr-only" htmlFor={`rol-${usuario.id}`}>Rol de {usuario.nombre}</label>
                       <select
                         id={`rol-${usuario.id}`}
-                        className="min-h-tactil rounded-control border-2 border-slate-400 bg-white px-3 text-base"
+                        className="min-h-tactil rounded-control border-2 border-bordeCampo bg-superficie px-3 text-base"
                         value={roles[usuario.id] ?? usuario.rol}
                         onChange={(evento) => setRoles((anterior) => ({ ...anterior, [usuario.id]: evento.target.value as Rol }))}
                       >
@@ -404,7 +445,7 @@ export function AdminPanel() {
                         type="button"
                         disabled={guardando === usuario.id}
                         onClick={() => void guardarRol(usuario)}
-                        className="min-h-tactil rounded-control bg-enfasis px-4 py-2 text-base font-semibold text-white disabled:opacity-60"
+                        className="inline-flex min-h-tactil items-center rounded-control bg-barro px-4 py-2 text-base font-bold text-white disabled:opacity-60"
                       >
                         Guardar rol
                       </button>
@@ -415,32 +456,42 @@ export function AdminPanel() {
             </table>
           </div>
         )}
-      </section>
+      </SeccionCard>
 
-      <section aria-labelledby="plazos" className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="plazos" className="text-2xl font-bold text-tinta">Plazos por dependencia</h2>
-        <div className="mt-4 grid gap-4">
-          {configuracion.length === 0 && <p className="text-lg text-tinta">No hay configuración registrada.</p>}
+      <SeccionCard
+        numero={3}
+        titulo="Tiempos límite por dependencia"
+        descripcion="Define cuántas horas tiene cada dependencia para dar su resultado y cuándo avisar."
+        tono="ocre"
+        icono={<Timer aria-hidden="true" className="h-7 w-7" />}
+      >
+        <div className="grid gap-5">
+          {configuracion.length === 0 && (
+            <MensajeVacio
+              titulo="No hay tiempos límite registrados"
+              descripcion="Cuando haya dependencias configuradas, podrás ajustar sus plazos aquí."
+            />
+          )}
           {configuracion.map((config) => {
             const forma = formas[config.id] ?? formaDesde(config);
             return (
               <form
                 key={config.id}
-                className="grid gap-3 rounded-control border-2 border-slate-300 p-4 sm:grid-cols-3"
+                className="grid gap-4 rounded-control border-2 border-arena bg-papel p-5 sm:grid-cols-3"
                 onSubmit={(evento) => {
                   evento.preventDefault();
                   void guardar(config);
                 }}
               >
                 <div>
-                  <label className="block text-lg font-semibold text-tinta" htmlFor={`limite-${config.id}`}>
-                    Límite (horas) · {config.dependencia_id}
+                  <label className={CLASE_ETIQUETA} htmlFor={`limite-${config.id}`}>
+                    Horas límite · {dependencias.find((item) => item.id === config.dependencia_id)?.nombre ?? config.dependencia_id}
                   </label>
                   <input
                     id={`limite-${config.id}`}
                     type="number"
                     min="1"
-                    className="mt-2 min-h-control w-full rounded-control border-2 border-slate-400 px-4 py-3 text-lg"
+                    className={CLASE_CAMPO}
                     value={forma.horasLimite}
                     onChange={(evento) => setFormas((anterior) => ({
                       ...anterior,
@@ -449,14 +500,14 @@ export function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-lg font-semibold text-tinta" htmlFor={`alerta-${config.id}`}>
-                    Aviso previo (horas)
+                  <label className={CLASE_ETIQUETA} htmlFor={`alerta-${config.id}`}>
+                    Avisar antes (horas)
                   </label>
                   <input
                     id={`alerta-${config.id}`}
                     type="number"
                     min="1"
-                    className="mt-2 min-h-control w-full rounded-control border-2 border-slate-400 px-4 py-3 text-lg"
+                    className={CLASE_CAMPO}
                     value={forma.horasAlerta}
                     onChange={(evento) => setFormas((anterior) => ({
                       ...anterior,
@@ -465,12 +516,12 @@ export function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-lg font-semibold text-tinta" htmlFor={`tipo-${config.id}`}>
+                  <label className={CLASE_ETIQUETA} htmlFor={`tipo-${config.id}`}>
                     Tipo de horas
                   </label>
                   <select
                     id={`tipo-${config.id}`}
-                    className="mt-2 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-4 py-3 text-lg"
+                    className={CLASE_CAMPO}
                     value={forma.tipoHoras}
                     onChange={(evento) => setFormas((anterior) => ({
                       ...anterior,
@@ -484,35 +535,41 @@ export function AdminPanel() {
                 <button
                   type="submit"
                   disabled={guardando === config.id}
-                  className="min-h-control rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60 sm:col-span-3"
+                  className={`${BOTON_PRIMARIO} disabled:opacity-60 sm:col-span-3`}
                 >
-                  {guardando === config.id ? 'Guardando...' : 'Guardar plazos'}
+                  {guardando === config.id ? 'Guardando...' : 'Guardar tiempos límite'}
                 </button>
               </form>
             );
           })}
         </div>
-      </section>
+      </SeccionCard>
 
-      <section aria-labelledby="correos-admin" className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="correos-admin" className="text-2xl font-bold text-tinta">Auditoría de correos</h2>
-        <p className="mt-2 text-lg text-tinta">
-          Cada intento queda registrado con estado, motivo y número de intentos.
-        </p>
-        <button
-          type="button"
-          disabled={guardando === 'cola'}
-          onClick={() => void vaciarPendientes()}
-          className="mt-4 min-h-control rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white disabled:opacity-60"
-        >
-          {guardando === 'cola' ? 'Enviando...' : 'Enviar correos pendientes'}
-        </button>
+      <SeccionCard
+        numero={4}
+        titulo="Correos simulados: revisión"
+        descripcion="Cada intento queda registrado con estado, motivo y número de intentos."
+        icono={<Mail aria-hidden="true" className="h-7 w-7" />}
+      >
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={guardando === 'cola'}
+            onClick={() => void vaciarPendientes()}
+            className={`${BOTON_PRIMARIO} disabled:opacity-60`}
+          >
+            {guardando === 'cola' ? 'Enviando...' : 'Enviar correos pendientes'}
+          </button>
+        </div>
         {notificaciones.length === 0 ? (
-          <p className="mt-3 text-lg text-tinta">Todavía no hay notificaciones registradas.</p>
+          <MensajeVacio
+            titulo="Todavía no hay correos registrados"
+            descripcion="Cuando se registre un aviso, podrás ver aquí si se envió o si falló."
+          />
         ) : (
-          <ul className="mt-4 grid gap-2">
+          <ul className="mt-5 grid gap-3">
             {notificaciones.map((notificacion) => (
-              <li key={notificacion.id} className="rounded-control border border-slate-300 p-3 text-lg text-tinta">
+              <li key={notificacion.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                 <p><strong>{notificacion.asunto}</strong> · {notificacion.estado} · {fechaLegible(notificacion.created_at)}</p>
                 <p className="mt-1 break-all">Para: {notificacion.destinatario}</p>
                 {notificacion.enviado_a && notificacion.enviado_a !== notificacion.destinatario && (
@@ -525,7 +582,7 @@ export function AdminPanel() {
                     type="button"
                     disabled={guardando === notificacion.id}
                     onClick={() => void reintentar(notificacion)}
-                    className="mt-2 min-h-tactil rounded-control border-2 border-enfasis px-4 py-2 text-base font-semibold text-enfasis disabled:opacity-60"
+                    className="mt-3 inline-flex min-h-tactil items-center rounded-control border-2 border-barro bg-superficie px-4 py-2 text-base font-bold text-barro disabled:opacity-60"
                   >
                     Reintentar correo
                   </button>
@@ -540,22 +597,27 @@ export function AdminPanel() {
             ))}
           </ul>
         )}
-      </section>
+      </SeccionCard>
 
-      <section aria-labelledby="tiempos-muertos" className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="tiempos-muertos" className="text-2xl font-bold text-tinta">Tiempos muertos por dependencia</h2>
-        <p className="mt-2 text-lg text-tinta">
-          Horas promedio entre el turnado y el acuse sellado. La tabla siguiente contiene los mismos datos.
-        </p>
+      <SeccionCard
+        numero={5}
+        titulo="Espera antes de la constancia"
+        descripcion="Horas promedio entre el envío a revisión y la constancia de recibido. La tabla repite los mismos datos."
+        tono="ocre"
+        icono={<Stamp aria-hidden="true" className="h-7 w-7" />}
+      >
         {metricas.length === 0 ? (
-          <p className="mt-2 text-lg text-tinta">No hay datos suficientes para graficar.</p>
+          <MensajeVacio
+            titulo="No hay datos suficientes"
+            descripcion="Cuando haya constancias registradas, verás aquí el promedio de espera."
+          />
         ) : (
           <>
             <svg
               viewBox={`0 0 600 ${Math.max(120, metricas.length * 70 + 40)}`}
               role="img"
               aria-labelledby="grafica-tiempos-titulo grafica-tiempos-desc"
-              className="mt-4 h-auto w-full"
+              className="h-auto w-full"
             >
               <title id="grafica-tiempos-titulo">Horas promedio de espera por dependencia</title>
               <desc id="grafica-tiempos-desc">
@@ -566,10 +628,10 @@ export function AdminPanel() {
                 const ancho = Math.round((metrica.horasPromedio / maxHoras) * 380);
                 return (
                   <g key={metrica.dependenciaId}>
-                    <text x="10" y={y + 24} fontSize="16" fill="#111827">{metrica.nombre}</text>
-                    <rect x="240" y={y + 6} width="380" height="26" fill="#E2E8F0" rx="6" />
-                    <rect x="240" y={y + 6} width={ancho} height="26" fill="#1D4ED8" rx="6" />
-                    <text x="628" y={y + 24} fontSize="16" fill="#111827" textAnchor="end">
+                    <text x="10" y={y + 24} fontSize="16" fill="#2B1810">{metrica.nombre}</text>
+                    <rect x="240" y={y + 6} width="380" height="26" fill="#D9C3A5" rx="6" />
+                    <rect x="240" y={y + 6} width={ancho} height="26" fill="#8F3A18" rx="6" />
+                    <text x="628" y={y + 24} fontSize="16" fill="#2B1810" textAnchor="end">
                       {metrica.horasPromedio} h
                     </text>
                   </g>
@@ -578,22 +640,22 @@ export function AdminPanel() {
             </svg>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[36rem] border-collapse text-left text-lg text-tinta">
-                <caption className="pb-2 text-left text-base text-tinta">Detalle de los tiempos muertos por dependencia.</caption>
+                <caption className="pb-3 text-left text-base text-tinta">Promedio y máximo de espera en cada dependencia.</caption>
                 <thead>
-                  <tr className="border-b-2 border-slate-400">
-                    <th scope="col" className="py-2 pr-3">Dependencia</th>
-                    <th scope="col" className="py-2 pr-3">Expedientes</th>
-                    <th scope="col" className="py-2 pr-3">Promedio (h)</th>
-                    <th scope="col" className="py-2">Máximo (h)</th>
+                  <tr className="border-b-4 border-arena">
+                    <th scope="col" className="py-3 pr-3">Dependencia</th>
+                    <th scope="col" className="py-3 pr-3">Expedientes</th>
+                    <th scope="col" className="py-3 pr-3">Promedio (h)</th>
+                    <th scope="col" className="py-3">Máximo (h)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {metricas.map((metrica) => (
-                    <tr key={metrica.dependenciaId} className="border-b border-slate-300">
-                      <td className="py-2 pr-3">{metrica.nombre}</td>
-                      <td className="py-2 pr-3">{metrica.expedientes}</td>
-                      <td className="py-2 pr-3">{metrica.horasPromedio}</td>
-                      <td className="py-2">{metrica.horasMaximas}</td>
+                    <tr key={metrica.dependenciaId} className="border-b-2 border-arena">
+                      <td className="py-3 pr-3 font-semibold">{metrica.nombre}</td>
+                      <td className="py-3 pr-3">{metrica.expedientes}</td>
+                      <td className="py-3 pr-3">{metrica.horasPromedio}</td>
+                      <td className="py-3">{metrica.horasMaximas}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -601,20 +663,28 @@ export function AdminPanel() {
             </div>
           </>
         )}
-      </section>
+      </SeccionCard>
 
-      <section aria-labelledby="correos-demo" className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="correos-demo" className="text-2xl font-bold text-tinta">Correos simulados (demo)</h2>
-        <p className="mt-2 text-lg text-tinta">
-          No se envían correos reales. Para probar un recordatorio manual, abre un expediente en{' '}
-          <Link href="/gestion" className="text-enfasis underline">Gestión</Link> y pulsa «Enviar recordatorio SLA».
-        </p>
+      <SeccionCard
+        numero={6}
+        titulo="Bandeja de correos simulados"
+        descripcion="No se envían correos reales. Para probar un recordatorio manual, abre un expediente en Gestión y pulsa «Enviar recordatorio»."
+        icono={<Mail aria-hidden="true" className="h-7 w-7" />}
+      >
         {correos.length === 0 ? (
-          <p className="mt-2 text-lg text-tinta">Aún no hay correos simulados.</p>
+          <MensajeVacio
+            titulo="Aún no hay correos simulados"
+            descripcion="Registra un recordatorio desde la bandeja de trabajo para verlo aparecer aquí."
+            accion={
+              <Link href="/gestion" className={BOTON_SECUNDARIO}>
+                Abrir bandeja de trabajo
+              </Link>
+            }
+          />
         ) : (
-          <ul className="mt-3 grid gap-2">
+          <ul className="grid gap-3">
             {correos.map((correo) => (
-              <li key={correo.id} className="rounded-control border border-slate-300 p-3 text-lg text-tinta">
+              <li key={correo.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                 <strong>{correo.asunto}</strong> · {correo.destinatario} · {fechaLegible(correo.fecha)}
                 <span className="mt-1 block text-base">{correo.cuerpo}</span>
                 <VistaCorreo
@@ -627,18 +697,24 @@ export function AdminPanel() {
             ))}
           </ul>
         )}
-      </section>
+      </SeccionCard>
 
-      <section className="mt-6 rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 className="text-2xl font-bold text-tinta">Auditoría</h2>
-        <p className="mt-2 text-lg text-tinta">Cada cambio queda en el historial, que no se puede modificar ni borrar.</p>
-        <Link
-          href="/historial"
-          className="mt-4 inline-flex min-h-control items-center rounded-control bg-enfasis px-5 py-3 text-lg font-semibold text-white"
-        >
-          Ver historial completo
-        </Link>
-      </section>
-    </main>
+      <SeccionCard
+        numero={7}
+        titulo="Auditoría"
+        descripcion="Cada cambio queda en el historial, que no se puede modificar ni borrar."
+        tono="ocre"
+        icono={<ShieldCheck aria-hidden="true" className="h-7 w-7" />}
+        accion={
+          <Link href="/historial" className={BOTON_PRIMARIO}>
+            Ver historial completo
+          </Link>
+        }
+      >
+        <p className="text-lg leading-relaxed text-tinta">
+          Consulta la línea de tiempo de todos los movimientos, incluidos los correos simulados.
+        </p>
+      </SeccionCard>
+    </PageShell>
   );
 }

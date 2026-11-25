@@ -31,23 +31,36 @@ const PASO: Readonly<Record<EtapaGeneral, number>> = {
 };
 
 const ESTILO: Readonly<
-  Record<ColorSemaforo, { borde: string; fondo: string; texto: string; barra: string }>
+  Record<ColorSemaforo, { borde: string; fondo: string; barra: string }>
 > = {
-  gris: { borde: 'border-slate-500', fondo: 'bg-slate-100', texto: 'text-semaforo-gris', barra: 'bg-semaforo-gris' },
-  azul: { borde: 'border-semaforo-azul', fondo: 'bg-blue-50', texto: 'text-semaforo-azul', barra: 'bg-semaforo-azul' },
-  ambar: { borde: 'border-semaforo-ambar', fondo: 'bg-amber-50', texto: 'text-semaforo-ambar', barra: 'bg-semaforo-ambar' },
-  rojo: { borde: 'border-semaforo-rojo', fondo: 'bg-red-50', texto: 'text-semaforo-rojo', barra: 'bg-semaforo-rojo' },
-  verde: { borde: 'border-semaforo-verde', fondo: 'bg-green-50', texto: 'text-semaforo-verde', barra: 'bg-semaforo-verde' }
+  gris: { borde: 'border-l-8 border-semaforo-gris', fondo: 'bg-semaforo-fondo-gris', barra: 'bg-semaforo-gris' },
+  azul: { borde: 'border-l-8 border-semaforo-azul', fondo: 'bg-semaforo-fondo-azul', barra: 'bg-semaforo-azul' },
+  ambar: { borde: 'border-l-8 border-semaforo-ambar', fondo: 'bg-semaforo-fondo-ambar', barra: 'bg-semaforo-ambar' },
+  rojo: { borde: 'border-l-8 border-semaforo-rojo', fondo: 'bg-semaforo-fondo-rojo', barra: 'bg-semaforo-rojo' },
+  verde: { borde: 'border-l-8 border-semaforo-verde', fondo: 'bg-semaforo-fondo-verde', barra: 'bg-semaforo-verde' }
 };
 
 const ETIQUETA_DEPENDENCIA: Readonly<Record<EstadoDependencia, string>> = {
-  pendiente: 'Pendiente de turno',
-  turnado: 'Oficio turnado',
-  en_inspeccion: 'En revisión',
-  observaciones: 'Observaciones',
+  pendiente: 'Aún no se envía a revisión',
+  turnado: 'Enviado a revisión',
+  en_inspeccion: 'Revisando el local',
+  observaciones: 'Falta documentación',
   aprobado: 'Aprobado',
   rechazado: 'Rechazado'
 };
+
+/** Frase que responde "¿qué sigue?" sin jerga administrativa. */
+function siguientePaso(etapa: EtapaGeneral, etiqueta: string, limite: number): string {
+  if (etiqueta === 'Rechazado') return 'Llama a la ventanilla para saber cómo continuar.';
+  const textos: Readonly<Record<EtapaGeneral, string>> = {
+    recepcion: 'La ventanilla revisará tu solicitud y la enviará a quien deba verla.',
+    turnado: `La dependencia revisará tu local en un plazo de ${limite} horas.`,
+    verificacion: `Están revisando tu local. El resultado debe llegar en un plazo de ${limite} horas.`,
+    observaciones: 'Sube el documento que falta para que la revisión continúe.',
+    aprobado: 'Listo. Ya puedes acudir a ventanilla con tu folio.'
+  };
+  return textos[etapa];
+}
 
 function IconoEstado({ color }: { color: ColorSemaforo }) {
   const propiedades = { width: 76, height: 76, viewBox: '0 0 72 72', 'aria-hidden': true } as const;
@@ -140,16 +153,20 @@ export function SemaforoTramite({
   return (
     <section
       aria-labelledby={`semaforo-${tramite.id}`}
-      className={`rounded-control border-4 ${estilo.borde} ${estilo.fondo} p-5`}
+      className={`rounded-control ${estilo.borde} ${estilo.fondo} p-5`}
     >
+      <div aria-hidden="true" className={`mb-4 h-3 w-full rounded-full ${estilo.barra}`} />
       <div className="flex flex-wrap items-center gap-5">
         <IconoEstado color={resultado.color} />
         <div className="min-w-0 flex-1">
-          <h2 id={`semaforo-${tramite.id}`} className={`text-2xl font-bold ${estilo.texto}`}>
+          <h2 id={`semaforo-${tramite.id}`} className="text-2xl font-bold text-tinta">
             {resultado.etiqueta}
           </h2>
           <p className="mt-1 text-lg text-tinta" aria-label={`Paso ${paso} de 5`}>
             Paso {paso} de 5 · {resultado.mensajeCiudadano}
+          </p>
+          <p className="mt-3 rounded-control border-l-4 border-ocre bg-superficie px-3 py-2 text-lg font-semibold text-tinta">
+            Lo que sigue: {siguientePaso(resultado.etapa, resultado.etiqueta, limite)}
           </p>
           <div
             className="mt-3 h-4 w-full overflow-hidden rounded-full bg-white"
@@ -165,25 +182,25 @@ export function SemaforoTramite({
       </div>
 
       <p className="mt-4 text-lg text-tinta" aria-label="Horas transcurridas del reloj de dictamen">
-        Reloj de dictamen: <strong>{horas.toFixed(1)} horas</strong> transcurridas de {limite} h permitidas.
-        {relojPrincipal?.calculo.dictamen.pausado ? ' El reloj está pausado a la espera de tu evidencia.' : ''}
+        Tiempo de respuesta: <strong>{horas.toFixed(1)} horas</strong> de {limite} horas disponibles.
+        {relojPrincipal?.calculo.dictamen.pausado ? ' El conteo está pausado mientras esperamos tu documento.' : ''}
       </p>
 
       {hayRetraso && (
-        <p role="alert" className="mt-3 rounded-control border-2 border-semaforo-rojo bg-white p-3 text-lg font-bold text-semaforo-rojo">
-          Retraso detectado: la revisión supera las {limite} h sin dictamen. Llama a la ventanilla para saber qué ocurre.
+        <p role="alert" className="mt-3 rounded-control border-l-8 border-semaforo-rojo bg-white p-3 text-lg font-bold text-tinta">
+          Retraso detectado: la revisión supera las {limite} horas sin resultado. Llama a la ventanilla para saber qué ocurre.
         </p>
       )}
 
       {resultado.color === 'rojo' && (
-        <div className="mt-4 rounded-control border-2 border-semaforo-rojo bg-white p-4">
+        <div className="mt-4 rounded-control border-l-8 border-semaforo-rojo bg-white p-4">
           <h3 className="text-xl font-bold text-tinta">¿Qué necesitamos de ti?</h3>
           <p className="mt-1 text-lg text-tinta">{resultado.motivo}</p>
           {puedeAportarEvidencia ? (
             <button
               type="button"
               onClick={abrirEvidencia}
-              className="mt-4 inline-flex min-h-control items-center gap-3 rounded-control bg-semaforo-rojo px-5 py-3 text-lg font-bold text-white"
+              className="mt-4 inline-flex min-h-control items-center gap-3 rounded-control bg-barro px-5 py-3 text-lg font-bold text-white"
             >
               <Upload aria-hidden="true" className="h-5 w-5" />
               Subir evidencia
@@ -205,7 +222,7 @@ export function SemaforoTramite({
                 catalogoDependencias?.find((item) => item.id === dependencia.dependencia_id)?.nombre ??
                 dependencia.dependencia_id;
               return (
-                <li key={dependencia.id} className="rounded-control border border-slate-300 bg-white px-4 py-3 text-lg text-tinta">
+                <li key={dependencia.id} className="rounded-control border-2 border-arena bg-white px-4 py-3 text-lg text-tinta">
                   {nombre}: <strong>{ETIQUETA_DEPENDENCIA[dependencia.estado]}</strong>
                   {dependencia.motivo && ` · ${dependencia.motivo}`}
                 </li>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import Tesseract from 'tesseract.js';
+import { BOTON_PRIMARIO, BOTON_SECUNDARIO, CLASE_CAMPO } from '@/components/layout/estilos';
 import {
   actualizarResultadoOcr,
   etiquetaCampo,
@@ -172,7 +173,7 @@ export function OcrScanner(props: OcrScannerProps) {
     return (
       <section
         aria-labelledby={`${idBase}-titulo`}
-        className="rounded-control border-2 border-slate-300 bg-white p-5"
+        className="rounded-control border-2 border-arena bg-superficie p-5"
       >
         <h2 id={`${idBase}-titulo`} className="text-xl font-bold text-tinta">
           Escaneo de {ETIQUETA_FORMATO[props.formato]}
@@ -191,32 +192,33 @@ export function OcrScanner(props: OcrScannerProps) {
   return (
     <section
       aria-labelledby={`${idBase}-titulo`}
-      className="rounded-control border-2 border-slate-300 bg-white p-5"
+      className="rounded-control border-2 border-arena bg-superficie p-5"
     >
-      <div className="flex items-start gap-4">
-        <ScanLine aria-hidden="true" className="mt-1 h-10 w-10 shrink-0 text-enfasis" />
+      <p className="text-lg font-semibold text-cafe">Lectura del documento</p>
+      <div className="mt-3 flex items-start gap-4">
+        <ScanLine aria-hidden="true" className="mt-1 h-10 w-10 shrink-0 text-barro" />
         <div className="min-w-0 flex-1">
           <h2 id={`${idBase}-titulo`} className="text-xl font-bold text-tinta">
             {fase === 'revisando' ? 'Revisa los datos leídos' : `Escaneo de ${ETIQUETA_FORMATO[props.formato]}`}
           </h2>
           <p aria-live="polite" className="mt-2 text-lg leading-relaxed text-tinta">
             {mensaje || (fase === 'inicio'
-              ? 'Toma una foto del documento o elige una imagen guardada. Si no permites la cámara, usa “Elegir imagen”. Podrás corregir todo antes de guardar.'
+              ? 'Acerca la cámara y evita sombras. Si no permites la cámara, elige una imagen guardada o captura los datos a mano. Nada se guarda sin tu confirmación.'
               : '')}
           </p>
 
           {ocupado && (
             <div className="mt-4" role="status" aria-live="polite">
               <div
-                className="h-3 w-full overflow-hidden rounded-full bg-slate-200"
+                className="h-3 w-full overflow-hidden rounded-full bg-arena"
                 aria-hidden="true"
               >
-                <div className="h-full bg-enfasis" style={{ width: `${progreso}%` }} />
+                <div className="h-full bg-barro" style={{ width: `${progreso}%` }} />
               </div>
               <button
                 type="button"
                 onClick={cancelar}
-                className="mt-3 inline-flex min-h-control items-center gap-2 rounded-control border-2 border-slate-500 bg-white px-5 py-2 text-lg font-bold text-tinta"
+                className={`mt-3 ${BOTON_SECUNDARIO}`}
               >
                 <X aria-hidden="true" className="h-5 w-5" /> Cancelar lectura
               </button>
@@ -227,7 +229,7 @@ export function OcrScanner(props: OcrScannerProps) {
             <div className="mt-4 flex flex-wrap gap-3">
               <label
                 htmlFor={`${idBase}-camara`}
-                className="inline-flex min-h-control cursor-pointer items-center gap-2 rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
+                className={`${BOTON_PRIMARIO} cursor-pointer`}
               >
                 <Camera aria-hidden="true" className="h-5 w-5" /> Tomar foto
               </label>
@@ -241,7 +243,7 @@ export function OcrScanner(props: OcrScannerProps) {
               />
               <label
                 htmlFor={`${idBase}-archivo`}
-                className="inline-flex min-h-control cursor-pointer items-center gap-2 rounded-control border-2 border-slate-500 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+                className={`${BOTON_SECUNDARIO} cursor-pointer`}
               >
                 <FileImage aria-hidden="true" className="h-5 w-5" /> Elegir imagen
               </label>
@@ -256,7 +258,7 @@ export function OcrScanner(props: OcrScannerProps) {
                 <button
                   type="button"
                   onClick={props.onManual}
-                  className="inline-flex min-h-control items-center gap-2 rounded-control border-2 border-slate-500 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+                  className={BOTON_SECUNDARIO}
                 >
                   <Pencil aria-hidden="true" className="h-5 w-5" /> Capturar datos a mano
                 </button>
@@ -265,7 +267,7 @@ export function OcrScanner(props: OcrScannerProps) {
           )}
 
           {error && (
-            <div className="mt-4 rounded-control border-2 border-semaforo-rojo bg-red-50 p-4">
+            <div className="mt-4 rounded-control border-l-8 border-semaforo-rojo bg-semaforo-fondo-rojo p-4">
               <p aria-live="assertive" className="flex items-start gap-2 text-lg font-bold text-tinta">
                 <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" /> {error}
               </p>
@@ -277,7 +279,7 @@ export function OcrScanner(props: OcrScannerProps) {
                     setFase('inicio');
                     setMensaje('');
                   }}
-                  className="inline-flex min-h-control items-center gap-2 rounded-control bg-enfasis px-5 py-2 text-lg font-bold text-white"
+                  className={BOTON_PRIMARIO}
                 >
                   <RotateCcw aria-hidden="true" className="h-5 w-5" /> Intentar de nuevo
                 </button>
@@ -285,7 +287,7 @@ export function OcrScanner(props: OcrScannerProps) {
                   <button
                     type="button"
                     onClick={props.onManual}
-                    className="min-h-control rounded-control border-2 border-slate-500 bg-white px-5 py-2 text-lg font-semibold text-tinta"
+                    className={BOTON_SECUNDARIO}
                   >
                     Capturar a mano
                   </button>
@@ -297,7 +299,7 @@ export function OcrScanner(props: OcrScannerProps) {
           {fase === 'revisando' && resultado && (
             <div className="mt-5 grid gap-5">
               {resultado.advertencias.length > 0 && (
-                <ul className="grid gap-2 rounded-control border-2 border-semaforo-ambar bg-amber-50 p-4 text-lg leading-relaxed text-tinta">
+                <ul className="grid gap-2 rounded-control border-l-8 border-semaforo-ambar bg-semaforo-fondo-ambar p-4 text-lg leading-relaxed text-tinta">
                   {resultado.advertencias.map((aviso) => (
                     <li key={aviso} className="flex items-start gap-2">
                       <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" /> {aviso}
@@ -307,7 +309,7 @@ export function OcrScanner(props: OcrScannerProps) {
               )}
 
               {esDesconocido ? (
-                <div className="rounded-control border-2 border-slate-400 bg-lienzo p-4">
+                <div className="rounded-control border-2 border-arena bg-papel p-4">
                   <p className="text-lg leading-relaxed text-tinta">
                     Guardamos el texto leído para que no pierdas tu trabajo. No podemos llenar los
                     campos automáticamente con este formato.
@@ -316,7 +318,7 @@ export function OcrScanner(props: OcrScannerProps) {
                     <button
                       type="button"
                       onClick={props.onManual}
-                      className="mt-3 min-h-control rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
+                      className={`mt-3 ${BOTON_PRIMARIO}`}
                     >
                       Capturar datos a mano
                     </button>
@@ -341,13 +343,13 @@ export function OcrScanner(props: OcrScannerProps) {
                             onChange={(evento) =>
                               setValores((anterior) => ({ ...anterior, [clave]: evento.target.value }))
                             }
-                            className="min-h-control w-full rounded-control border-2 border-slate-500 bg-white px-3 text-lg text-tinta focus:ring-4 focus:ring-enfasis"
+                            className={CLASE_CAMPO}
                           />
                           <p id={`${id}-detalle`} className="flex flex-wrap gap-x-4 gap-y-1 text-base font-semibold text-tinta">
                             <span>Confianza: {campo?.confianza ?? 0}%</span>
                             {requiere && (
                               <span className="inline-flex items-center gap-1 font-bold">
-                                <AlertTriangle aria-hidden="true" className="h-4 w-4" /> Requiere validación
+                                <AlertTriangle aria-hidden="true" className="h-5 w-5" /> Requiere validación: revisa este dato
                               </span>
                             )}
                             {campo?.validadoPorHumano && (
@@ -365,7 +367,7 @@ export function OcrScanner(props: OcrScannerProps) {
                     <button
                       type="button"
                       onClick={confirmar}
-                      className="inline-flex min-h-control items-center gap-2 rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
+                      className={BOTON_PRIMARIO}
                     >
                       <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
                       {props.etiquetaConfirmar ?? 'Confirmar datos leídos'}
@@ -373,14 +375,14 @@ export function OcrScanner(props: OcrScannerProps) {
                     <button
                       type="button"
                       onClick={corregirAMano}
-                      className="inline-flex min-h-control items-center gap-2 rounded-control border-2 border-slate-500 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+                      className={BOTON_SECUNDARIO}
                     >
                       <Pencil aria-hidden="true" className="h-5 w-5" /> Corregir a mano
                     </button>
                     <button
                       type="button"
                       onClick={cancelar}
-                      className="min-h-control rounded-control border-2 border-slate-500 bg-white px-6 py-3 text-lg font-semibold text-tinta"
+                      className="min-h-control rounded-control border-2 border-bordeCampo bg-superficie px-6 py-3 text-lg font-semibold text-tinta"
                     >
                       Cancelar
                     </button>

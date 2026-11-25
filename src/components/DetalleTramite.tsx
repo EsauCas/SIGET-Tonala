@@ -1,9 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ClipboardCheck } from 'lucide-react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useCorreos } from '@/components/EmailLogToast';
 import { Aviso, Cargando, ErrorVista, fechaLegible } from '@/components/EstadosVista';
+import {
+  BOTON_PRIMARIO,
+  BOTON_SECUNDARIO,
+  CLASE_CAMPO,
+  CLASE_ETIQUETA,
+  CLASE_ERROR
+} from '@/components/layout/estilos';
 import { SemaforoTramite } from '@/components/SemaforoTramite';
 import { SubirEvidencia } from '@/components/SubirEvidencia';
 import { useRepository } from '@/components/RepositoryProvider';
@@ -24,16 +32,39 @@ import type {
 
 const ACCIONES: Readonly<Record<string, string>> = {
   tramite_creado: 'Se registró la solicitud',
-  turnado_registrado: 'Se turnó el oficio a la dependencia',
-  acuse_registrado: 'Se registró el acuse con sello',
-  recepcion_registrada: 'La dependencia confirmó la recepción',
-  dictamen_registrado: 'La dependencia emitió un dictamen',
+  turnado_registrado: 'Se envió el oficio a revisión',
+  acuse_registrado: 'Se registró la constancia de recibido',
+  recepcion_registrada: 'La dependencia confirmó que recibió los documentos',
+  dictamen_registrado: 'Se registró el resultado de la revisión',
   evidencia_entregada: 'La persona contribuyente entregó un documento',
   cambio_estado_dependencia: 'Cambió el estado de una revisión'
 };
 
-const BOTON_CONTROL =
-  'min-h-control rounded-control px-5 py-3 text-lg font-semibold text-white disabled:opacity-60';
+const FRANJAS: Readonly<Record<string, string>> = {
+  pendiente: 'border-l-semaforo-gris bg-semaforo-fondo-gris',
+  turnado: 'border-l-semaforo-azul bg-semaforo-fondo-azul',
+  en_inspeccion: 'border-l-semaforo-ambar bg-semaforo-fondo-ambar',
+  observaciones: 'border-l-semaforo-rojo bg-semaforo-fondo-rojo',
+  aprobado: 'border-l-semaforo-verde bg-semaforo-fondo-verde',
+  rechazado: 'border-l-semaforo-rojo bg-semaforo-fondo-rojo'
+};
+
+const BASE_DECISION =
+  'inline-flex min-h-control items-center justify-center gap-3 rounded-control border-2 px-5 py-3 text-lg font-bold';
+
+const CLASES_DECISION: Readonly<Record<Dictamen, string>> = {
+  aprobado: `${BASE_DECISION} border-semaforo-verde bg-semaforo-fondo-verde text-tinta`,
+  observaciones: `${BASE_DECISION} border-semaforo-ambar bg-semaforo-fondo-ambar text-tinta`,
+  rechazado: `${BASE_DECISION} border-semaforo-rojo bg-semaforo-fondo-rojo text-tinta`
+};
+
+function iconoEstado(estado: string): ReactNode {
+  if (estado === 'aprobado') return <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0" />;
+  if (estado === 'observaciones' || estado === 'rechazado') {
+    return <AlertTriangle aria-hidden="true" className="h-5 w-5 shrink-0" />;
+  }
+  return <ClipboardCheck aria-hidden="true" className="h-5 w-5 shrink-0" />;
+}
 
 /** Detalle del expediente con las acciones permitidas para cada rol. */
 export function DetalleTramite({ id }: { id: string }) {
@@ -158,7 +189,7 @@ export function DetalleTramite({ id }: { id: string }) {
         claveIdempotencia: clave
       });
       await procesarCorreos(clave);
-    }, 'Recordatorio registrado. No se enviará otro con la misma clave el mismo día.');
+    }, 'Recordatorio enviado. No se enviará otro hoy.');
   }
 
   if (cargando) {
@@ -187,8 +218,8 @@ export function DetalleTramite({ id }: { id: string }) {
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10">
       <div>
         <p className="text-lg font-semibold text-tinta">Folio {tramite.folio}</p>
-        <h1 className="mt-1 text-3xl font-bold text-tinta">{tramite.giro_principal}</h1>
-        <p className="mt-2 text-lg text-tinta">
+        <h1 className="mt-2 text-3xl font-bold text-cafe">{tramite.giro_principal}</h1>
+        <p className="mt-3 text-lg leading-relaxed text-tinta">
           {tramite.domicilio_negocio}, {tramite.colonia} · Registrado el {fechaLegible(tramite.created_at)}
         </p>
       </div>
@@ -203,11 +234,13 @@ export function DetalleTramite({ id }: { id: string }) {
 
       <Aviso mensaje={aviso} exito={avisoExito} />
 
-      <section aria-labelledby="revisiones" className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="revisiones" className="text-2xl font-bold text-tinta">Revisiones por dependencia</h2>
+      <section aria-labelledby="revisiones" className="rounded-control border-2 border-arena bg-superficie p-5">
+        <h2 id="revisiones" className="text-2xl font-bold text-cafe">Revisiones por dependencia</h2>
         <div id="evidencia" className="mt-4 grid gap-4">
           {tramite.dependencias.length === 0 && (
-            <p className="text-lg text-tinta">Esta solicitud aún no tiene dependencias asignadas.</p>
+            <p className="rounded-control border-l-8 border-semaforo-gris bg-semaforo-fondo-gris p-4 text-lg leading-relaxed text-tinta">
+              Esta solicitud aún no tiene dependencias asignadas.
+            </p>
           )}
           {tramite.dependencias.map((dependencia) => {
             const configurada = configuracion.find(
@@ -221,41 +254,48 @@ export function DetalleTramite({ id }: { id: string }) {
             const motive = (motivos[dependencia.id] ?? '').trim();
 
             return (
-              <article key={dependencia.id} className="rounded-control border-2 border-slate-300 p-4">
-                <h3 className="text-xl font-bold text-tinta">{nombreDependencia(dependencia.dependencia_id)}</h3>
-                <p className="mt-1 text-lg text-tinta">Estado: <strong>{dependencia.estado.replace('_', ' ')}</strong></p>
-                <p className="mt-1 text-lg text-tinta">
-                  Reloj de dictamen: {calculo.dictamen.transcurrido_horas.toFixed(1)} h de{' '}
-                  {calculo.dictamen.limite_horas} h · {calculo.dictamen.categoria.replace('_', ' ')}
-                  {calculo.dictamen.pausado ? ' · pausado' : ''}
-                </p>
-                {dependencia.motivo && (
-                  <p className="mt-2 text-lg text-semaforo-rojo">Motivo: {dependencia.motivo}</p>
-                )}
+              <article key={dependencia.id} className="rounded-control border-2 border-arena bg-superficie p-4">
+                <div className={`rounded-control border-l-8 p-4 ${FRANJAS[dependencia.estado] ?? 'border-l-semaforo-gris bg-semaforo-fondo-gris'}`}>
+                  <h3 className="text-xl font-bold text-cafe">{nombreDependencia(dependencia.dependencia_id)}</h3>
+                  <p className="mt-2 flex items-center gap-3 text-lg font-semibold text-tinta">
+                    {iconoEstado(dependencia.estado)}
+                    Estado: <strong>{dependencia.estado.replace('_', ' ')}</strong>
+                  </p>
+                  <p className="mt-2 text-lg leading-relaxed text-tinta">
+                    Tiempo de respuesta de la revisión: {calculo.dictamen.transcurrido_horas.toFixed(1)} h de{' '}
+                    {calculo.dictamen.limite_horas} h · {calculo.dictamen.categoria.replace('_', ' ')}
+                    {calculo.dictamen.pausado ? ' · en pausa' : ''}
+                  </p>
+                  {dependencia.motivo && (
+                    <p className={`${CLASE_ERROR} flex items-start gap-2`}>
+                      <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" />
+                      Motivo: {dependencia.motivo}
+                    </p>
+                  )}
 
-                <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="mt-4 flex flex-wrap gap-3">
                   {actor?.rol === 'secretaria' && dependencia.estado === 'pendiente' && (
                     <button
                       type="button"
                       disabled={ocupado}
                       onClick={() => void ejecutar(
                         (repo) => repo.registrarTurno({ actor: actor, tramiteDependenciaId: dependencia.id }),
-                        'Oficio turnado correctamente.'
+                        'El oficio se envió a revisión.'
                       )}
-                      className={`${BOTON_CONTROL} bg-enfasis`}
+                      className={BOTON_PRIMARIO}
                     >
-                      Turnar oficio
+                      Enviar a revisión
                     </button>
                   )}
 
                   {actor?.rol === 'secretaria' && dependencia.estado === 'turnado' && (
                     <div className="w-full">
-                      <label className="block text-lg font-semibold text-tinta" htmlFor={`sello-${dependencia.id}`}>
-                        Folio del sello de acuse
+                      <label className={CLASE_ETIQUETA} htmlFor={`sello-${dependencia.id}`}>
+                        Folio del sello de la constancia de recibido (obligatorio)
                       </label>
                       <input
                         id={`sello-${dependencia.id}`}
-                        className="mt-2 block w-full min-h-control rounded-control border-2 border-slate-400 px-4 py-3 text-lg"
+                        className={CLASE_CAMPO}
                         value={sellos[dependencia.id] ?? ''}
                         onChange={(evento) => setSellos((anterior) => ({ ...anterior, [dependencia.id]: evento.target.value }))}
                       />
@@ -268,11 +308,11 @@ export function DetalleTramite({ id }: { id: string }) {
                             tramiteDependenciaId: dependencia.id,
                             selloFolio: sellos[dependencia.id] ?? ''
                           }),
-                          'Acuse registrado.'
+                          'Constancia de recibido registrada.'
                         )}
-                        className={`${BOTON_CONTROL} mt-3 bg-enfasis`}
+                        className={`${BOTON_PRIMARIO} mt-3`}
                       >
-                        Registrar acuse sellado
+                        Registrar constancia de recibido
                       </button>
                     </div>
                   )}
@@ -284,21 +324,21 @@ export function DetalleTramite({ id }: { id: string }) {
                         disabled={ocupado}
                         onClick={() => void ejecutar(
                           (repo) => repo.registrarRecepcion({ actor: actor, tramiteDependenciaId: dependencia.id }),
-                          'Recepción registrada. Ya puedes dictaminar.'
+                          'Confirmado. Ya puedes registrar el resultado de la revisión.'
                         )}
-                        className={`${BOTON_CONTROL} bg-enfasis`}
+                        className={BOTON_PRIMARIO}
                       >
-                        Registrar recepción del oficio
+                        Confirmar que recibimos el oficio
                       </button>
                     ) : dependencia.estado === 'en_inspeccion' ? (
                       <div className="w-full">
-                        <label className="block text-lg font-semibold text-tinta" htmlFor={`motivo-${dependencia.id}`}>
-                          Motivo (obligatorio si no es aprobado)
+                        <label className={CLASE_ETIQUETA} htmlFor={`motivo-${dependencia.id}`}>
+                          Motivo (obligatorio si no apruebas)
                         </label>
                         <textarea
                           id={`motivo-${dependencia.id}`}
                           rows={3}
-                          className="mt-2 block w-full rounded-control border-2 border-slate-400 px-4 py-3 text-lg"
+                          className={CLASE_CAMPO}
                           value={motivos[dependencia.id] ?? ''}
                           onChange={(evento) => setMotivos((anterior) => ({ ...anterior, [dependencia.id]: evento.target.value }))}
                         />
@@ -316,20 +356,14 @@ export function DetalleTramite({ id }: { id: string }) {
                                   motivo: decision === 'aprobado' ? null : motive
                                 }),
                                 decision === 'aprobado'
-                                  ? 'Dictamen aprobado registrado.'
+                                  ? 'Resultado de la revisión: aprobado.'
                                   : decision === 'observaciones'
-                                    ? 'Observaciones registradas. El reloj quedó pausado.'
+                                    ? 'Pedimos un documento. El tiempo de respuesta quedó en pausa.'
                                     : 'Rechazo registrado con su motivo.'
                               )}
-                              className={`${BOTON_CONTROL} ${
-                                decision === 'aprobado'
-                                  ? 'bg-semaforo-verde'
-                                  : decision === 'observaciones'
-                                    ? 'bg-semaforo-ambar'
-                                    : 'bg-semaforo-rojo'
-                              }`}
+                              className={CLASES_DECISION[decision]}
                             >
-                              {decision === 'aprobado' ? 'Aprobar' : decision === 'observaciones' ? 'Pedir observaciones' : 'Rechazar'}
+                              {decision === 'aprobado' ? 'Aprobar' : decision === 'observaciones' ? 'Pedir un documento' : 'Rechazar'}
                             </button>
                           ))}
                         </div>
@@ -353,11 +387,12 @@ export function DetalleTramite({ id }: { id: string }) {
                       type="button"
                       disabled={ocupado}
                       onClick={() => void enviarRecordatorio(dependencia)}
-                      className={`${BOTON_CONTROL} border-2 border-enfasis bg-white !text-enfasis`}
+                      className={BOTON_SECUNDARIO}
                     >
-                      Enviar recordatorio SLA
+                      Enviar recordatorio
                     </button>
                   )}
+                  </div>
                 </div>
               </article>
             );
@@ -365,14 +400,14 @@ export function DetalleTramite({ id }: { id: string }) {
         </div>
       </section>
 
-      <section aria-labelledby="documentos" className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="documentos" className="text-2xl font-bold text-tinta">Documentos del expediente</h2>
+      <section aria-labelledby="documentos" className="rounded-control border-2 border-arena bg-superficie p-5">
+        <h2 id="documentos" className="text-2xl font-bold text-cafe">Documentos del expediente</h2>
         {tramite.documentos.length === 0 ? (
-          <p className="mt-2 text-lg text-tinta">Todavía no hay documentos registrados.</p>
+          <p className="mt-3 text-lg leading-relaxed text-tinta">Todavía no hay documentos registrados.</p>
         ) : (
-          <ul className="mt-3 grid gap-2">
+          <ul className="mt-3 grid gap-3">
             {tramite.documentos.map((documento) => (
-              <li key={documento.id} className="rounded-control border border-slate-300 p-3 text-lg text-tinta">
+              <li key={documento.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                 {documento.tipo} · {documento.mime} · {(documento.size_bytes / 1024).toFixed(0)} KB ·{' '}
                 {fechaLegible(documento.created_at)}
                 {documento.storage_path.startsWith('demo://') && ' · archivo simulado (demo)'}
@@ -382,18 +417,18 @@ export function DetalleTramite({ id }: { id: string }) {
         )}
       </section>
 
-      <section aria-labelledby="historial-detalle" className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <h2 id="historial-detalle" className="text-2xl font-bold text-tinta">Historial de este trámite</h2>
+      <section aria-labelledby="historial-detalle" className="rounded-control border-2 border-arena bg-superficie p-5">
+        <h2 id="historial-detalle" className="text-2xl font-bold text-cafe">Historial de este trámite</h2>
         {historial.length === 0 ? (
-          <p className="mt-2 text-lg text-tinta">Aún no hay eventos registrados.</p>
+          <p className="mt-3 text-lg leading-relaxed text-tinta">Aún no hay eventos registrados.</p>
         ) : (
-          <ol className="mt-3 grid gap-2">
+          <ol className="mt-3 grid gap-3">
             {historial.map((evento) => (
-              <li key={evento.id} className="rounded-control border border-slate-300 p-3 text-lg text-tinta">
+              <li key={evento.id} className="rounded-control border-2 border-arena bg-papel p-4 text-lg leading-relaxed text-tinta">
                 <strong>{ACCIONES[evento.accion] ?? evento.accion}</strong> · {evento.actor_rol} ·{' '}
                 {fechaLegible(evento.created_at)}
                 {evento.datos_despues && (
-                  <span className="mt-1 block break-words text-base">Detalle: {evento.datos_despues}</span>
+                  <span className="mt-2 block break-words text-lg">Detalle: {evento.datos_despues}</span>
                 )}
               </li>
             ))}

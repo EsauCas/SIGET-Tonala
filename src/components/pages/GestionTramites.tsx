@@ -1,18 +1,23 @@
 'use client';
 
-import { BellRing, CheckCircle2, ClipboardCheck, Send, ShieldAlert } from 'lucide-react';
+import { BellRing, CheckCircle2, ClipboardCheck, FileCheck2, Send, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AcuseIndividualPanel } from '@/components/AcuseIndividualPanel';
 import { AcuseLotePanel } from '@/components/AcuseLotePanel';
 import { DialogoConfirmacion } from '@/components/DialogoConfirmacion';
 import { DrawerExpediente } from '@/components/DrawerExpediente';
-import { Aviso, Cargando, ErrorVista, Vacio } from '@/components/EstadosVista';
+import { Aviso, Cargando, ErrorVista } from '@/components/EstadosVista';
 import { EtiquetaEstado } from '@/components/TramiteLista';
 import { useAuth } from '@/components/AuthProvider';
 import { useCorreos } from '@/components/EmailLogToast';
+import { PageShell } from '@/components/layout/PageShell';
+import { SeccionCard } from '@/components/layout/SeccionCard';
+import { MensajeVacio } from '@/components/layout/MensajeVacio';
+import { BOTON_PRIMARIO, CLASE_CAMPO } from '@/components/layout/estilos';
 import { useRepository } from '@/components/RepositoryProvider';
 import { useRelojDemo } from '@/components/useRelojDemo';
+import { categoriaDelTramite, type CategoriaPanel } from '@/lib/domain/clasificacion';
 import {
   claveAccion,
   claveRecordatorio,
@@ -39,19 +44,21 @@ import type {
 } from '@/types/database';
 
 const ETIQUETA_ESTADO: Readonly<Record<EstadoDependencia, string>> = {
-  pendiente: 'Pendiente',
-  turnado: 'Turnado',
-  en_inspeccion: 'En revisión',
-  observaciones: 'Con observaciones',
+  pendiente: 'Aún no se envía',
+  turnado: 'Enviado a revisión',
+  en_inspeccion: 'Revisando el local',
+  observaciones: 'Falta documentación',
   aprobado: 'Aprobado',
   rechazado: 'Rechazado'
 };
 
 const COLOR_URGENCIA: Readonly<Record<ResumenUrgencia['categoria'], string>> = {
-  en_tiempo: 'border-semaforo-verde bg-green-50 text-semaforo-verde',
-  por_vencer: 'border-semaforo-ambar bg-amber-50 text-semaforo-ambar',
-  vencido: 'border-semaforo-rojo bg-red-50 text-semaforo-rojo'
+  en_tiempo: 'border-l-8 border-semaforo-verde bg-semaforo-fondo-verde text-tinta',
+  por_vencer: 'border-l-8 border-semaforo-ambar bg-semaforo-fondo-ambar text-tinta',
+  vencido: 'border-l-8 border-semaforo-rojo bg-semaforo-fondo-rojo text-tinta'
 };
+
+const CATEGORIAS: readonly CategoriaPanel[] = ['vencido', 'por_vencer', 'en_tiempo', 'pendiente'];
 
 interface DatosBandeja {
   tramites: TramiteConDetalle[];
@@ -75,6 +82,7 @@ export function GestionTramites() {
   const [datos, setDatos] = useState<DatosBandeja | null>(null);
   const [errorCarga, setErrorCarga] = useState('');
   const [dependenciaFiltro, setDependenciaFiltro] = useState('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaPanel | ''>('');
   const [busqueda, setBusqueda] = useState('');
   const [accion, setAccion] = useState<Accion | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -102,6 +110,12 @@ export function GestionTramites() {
     void cargar();
   }, [cargar]);
 
+  // Los paneles del inicio enlazan aquí con ?categoria=...; es sólo un filtro de vista.
+  useEffect(() => {
+    const valor = new URLSearchParams(window.location.search).get('categoria');
+    if (valor && CATEGORIAS.includes(valor as CategoriaPanel)) setCategoriaFiltro(valor as CategoriaPanel);
+  }, []);
+
   const visibles = useMemo(() => {
     if (!datos) return [];
     const clave = datos.catalogo.find((item) => item.id === dependenciaFiltro)?.clave as
@@ -112,9 +126,12 @@ export function GestionTramites() {
       dependenciaId: dependenciaFiltro,
       dependenciaClave: clave,
       busqueda
-    });
+    }).filter((tramite) =>
+      categoriaFiltro === '' ||
+      categoriaDelTramite(tramite, datos.configuracion, ahora) === categoriaFiltro
+    );
     return ordenarPorUrgencia(filtrados, datos.configuracion, ahora);
-  }, [actor, ahora, busqueda, datos, dependenciaFiltro]);
+  }, [actor, ahora, busqueda, categoriaFiltro, datos, dependenciaFiltro]);
 
   function notificar(mensaje: string, esExito = true): void {
     setAviso(mensaje);
@@ -166,107 +183,186 @@ export function GestionTramites() {
     }
   }
 
-  if (cargandoAuth) return <Cargando mensaje="Verificando tu sesión..." />;
+  if (cargandoAuth) {
+    return (
+      <PageShell titulo="Preparando la bandeja" descripcion="Estamos verificando tu perfil de trabajo.">
+        <Cargando mensaje="Verificando tu sesión..." />
+      </PageShell>
+    );
+  }
 
   if (actor?.rol === 'ciudadano') {
     return (
-      <main className="mx-auto grid w-full max-w-4xl gap-5 px-5 py-12">
-        <div role="status" className="rounded-control border-4 border-enfasis bg-white p-6">
-          <h1 className="text-3xl font-bold text-tinta">Esta sección es para el personal municipal</h1>
-          <p className="mt-3 text-lg leading-relaxed text-tinta">
-            Tu solicitud se atiende en la sección de trámites. Ahí puedes revisar el avance y
-            entregar documentos cuando se te pida.
-          </p>
-          <Link
-            href="/tramites"
-            className="mt-5 inline-flex min-h-control items-center rounded-control bg-enfasis px-6 py-3 text-lg font-bold text-white"
-          >
-            Ir a mis trámites
-          </Link>
-        </div>
-      </main>
+      <PageShell
+        titulo="Esta sección es para el personal municipal"
+        descripcion="Tu solicitud se atiende en la sección de trámites. Ahí ves el avance y entregas documentos cuando se te pida."
+      >
+        <MensajeVacio
+          titulo="Ir a tus trámites"
+          descripcion="Consulta cómo va tu solicitud sin salir de tu perfil."
+          accion={
+            <Link href="/tramites" className={BOTON_PRIMARIO}>
+              Ir a mis trámites
+            </Link>
+          }
+        />
+      </PageShell>
     );
   }
 
   if (!actor || !repositorio) {
     return (
-      <main className="mx-auto w-full max-w-4xl px-5 py-12">
+      <PageShell titulo="No pudimos identificar tu sesión" descripcion="Vuelve al inicio y elige un perfil de prueba válido.">
         <ErrorVista mensaje="No pudimos identificar tu sesión. Vuelve al inicio y selecciona un perfil válido." />
-      </main>
+      </PageShell>
     );
   }
 
   if (errorCarga) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-10">
+      <PageShell titulo="No pudimos abrir la bandeja" descripcion="Tus datos siguen guardados. Inténtalo otra vez.">
         <ErrorVista mensaje={errorCarga} onReintentar={() => void cargar()} />
-      </main>
+      </PageShell>
     );
   }
 
-  if (!datos) return <Cargando mensaje="Preparando la bandeja de trabajo..." />;
+  if (!datos) {
+    return (
+      <PageShell titulo="Preparando la bandeja" descripcion="Ordenando los trámites por urgencia.">
+        <Cargando mensaje="Preparando la bandeja de trabajo..." />
+      </PageShell>
+    );
+  }
 
   const esSecretaria = actor.rol === 'secretaria';
 
   return (
-    <main className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-10">
-      <header>
-        <p className="text-lg font-semibold text-tinta">Bandeja de trabajo</p>
-        <h1 className="mt-1 text-3xl font-bold text-tinta">Gestión de trámites</h1>
-        <p className="mt-2 text-lg leading-relaxed text-tinta">
-          Los trámites con más tiempo de revisión aparecen primero. Abre el expediente para ver el detalle.
-        </p>
-      </header>
-
+    <PageShell
+      titulo="Gestionar trámites"
+      descripcion="¿Qué puedo hacer aquí? Revisa primero lo vencido, registra la constancia de recibido y da el resultado de la revisión."
+    >
       <Aviso mensaje={aviso} exito={exito} />
 
-      <section aria-labelledby="filtros-titulo" className="rounded-control border-2 border-slate-300 bg-white p-4">
-        <h2 id="filtros-titulo" className="text-xl font-bold text-tinta">Buscar y filtrar</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div>
-            <label htmlFor="filtro-dependencia" className="block text-lg font-bold text-tinta">Dependencia</label>
-            <select
-              id="filtro-dependencia"
-              value={dependenciaFiltro}
-              onChange={(e) => setDependenciaFiltro(e.target.value)}
-              className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
+      <SeccionCard
+        numero={1}
+        titulo="Buscar y filtrar"
+        descripcion="Elige una dependencia o escribe el folio. Los trámites urgentes aparecen primero."
+        tono="ocre"
+      >
+        <p id="filtro-dependencia" className="text-lg font-bold text-tinta">Dependencia</p>
+        <div className="mt-2 flex flex-wrap gap-3" role="group" aria-labelledby="filtro-dependencia">
+          <button
+            type="button"
+            aria-pressed={dependenciaFiltro === ''}
+            onClick={() => setDependenciaFiltro('')}
+            className={`min-h-control rounded-control border-2 px-5 py-3 text-lg font-bold ${
+              dependenciaFiltro === '' ? 'border-cafe bg-ocre text-tinta' : 'border-bordeCampo bg-superficie text-tinta'
+            }`}
+          >
+            Todas
+          </button>
+          {datos.catalogo.map((item) => {
+            const activo = dependenciaFiltro === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setDependenciaFiltro(item.id)}
+                className={`min-h-control rounded-control border-2 px-5 py-3 text-lg font-bold ${
+                  activo ? 'border-cafe bg-ocre text-tinta' : 'border-bordeCampo bg-superficie text-tinta'
+                }`}
+              >
+                {item.nombre}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-6">
+          <p id="filtro-categoria" className="text-lg font-bold text-tinta">Tiempo de respuesta</p>
+          <div className="mt-2 flex flex-wrap gap-3" role="group" aria-labelledby="filtro-categoria">
+            <button
+              type="button"
+              aria-pressed={categoriaFiltro === ''}
+              onClick={() => setCategoriaFiltro('')}
+              className={`min-h-control rounded-control border-2 px-5 py-3 text-lg font-bold ${
+                categoriaFiltro === '' ? 'border-cafe bg-ocre text-tinta' : 'border-bordeCampo bg-superficie text-tinta'
+              }`}
             >
-              <option value="">Todas</option>
-              {datos.catalogo.map((item) => (
-                <option key={item.id} value={item.id}>{item.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="buscar-bandeja" className="block text-lg font-bold text-tinta">Folio o nombre</label>
-            <input
-              id="buscar-bandeja"
-              type="search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Ej. FT-2026-0001 o María"
-              className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
-            />
+              Todos
+            </button>
+            {(['vencido', 'por_vencer', 'en_tiempo', 'pendiente'] as const).map((categoria) => {
+              const activo = categoriaFiltro === categoria;
+              const etiquetas: Record<CategoriaPanel, string> = {
+                vencido: 'Vencidos',
+                por_vencer: 'Por vencer',
+                en_tiempo: 'En tiempo',
+                pendiente: 'Por enviar'
+              };
+              return (
+                <button
+                  key={categoria}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() => setCategoriaFiltro(categoria)}
+                  className={`min-h-control rounded-control border-2 px-5 py-3 text-lg font-bold ${
+                    activo ? 'border-cafe bg-ocre text-tinta' : 'border-bordeCampo bg-superficie text-tinta'
+                  }`}
+                >
+                  {etiquetas[categoria]}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </section>
+
+        <div className="mt-6 max-w-xl">
+          <label htmlFor="buscar-bandeja" className="text-lg font-bold text-tinta">Buscar por folio o nombre</label>
+          <input
+            id="buscar-bandeja"
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Ej. TT-2026-0001 o María"
+            className={CLASE_CAMPO}
+          />
+        </div>
+      </SeccionCard>
 
       {visibles.length === 0 ? (
-        <Vacio
-          titulo="No hay trámites que mostrar"
-          mensaje="Prueba con otro folio, nombre o dependencia. Si sigue sin aparecer, aún no hay trámites en esta bandeja."
+        <MensajeVacio
+          titulo="No hay trámites con esos filtros"
+          descripcion="Quita un filtro o escribe otro folio. Si aun así no aparece, todavía no hay trámites en esta bandeja."
+          accion={
+            <button
+              type="button"
+              className="min-h-control rounded-control border-2 border-barro bg-superficie px-5 py-3 text-lg font-bold text-barro"
+              onClick={() => {
+                setBusqueda('');
+                setDependenciaFiltro('');
+                setCategoriaFiltro('');
+              }}
+            >
+              Quitar filtros
+            </button>
+          }
         />
       ) : (
-        <>
-          <section aria-label="Bandeja de trámites" className="hidden overflow-x-auto rounded-control border-2 border-slate-300 bg-white md:block">
+        <SeccionCard
+          numero={2}
+          titulo="Trámites ordenados por urgencia"
+          descripcion="Vencidos primero. La acción recomendada está resaltada; las demás están en «Más acciones»."
+        >
+          <section aria-label="Bandeja de trámites" className="hidden overflow-x-auto rounded-control border-2 border-arena bg-superficie md:block">
             <table className="w-full min-w-[900px] border-collapse text-base text-tinta">
-              <caption className="sr-only">Trámites ordenados por urgencia de SLA</caption>
-              <thead className="bg-lienzo">
+              <caption className="sr-only">Trámites ordenados por urgencia en el tiempo de respuesta</caption>
+              <thead className="bg-papel">
                 <tr>
                   <th scope="col" className="p-3 text-left font-bold">Folio y persona</th>
                   <th scope="col" className="p-3 text-left font-bold">Situación</th>
                   <th scope="col" className="p-3 text-left font-bold">Estado por dependencia</th>
-                  <th scope="col" className="p-3 text-left font-bold">Reloj de dictamen</th>
+                  <th scope="col" className="p-3 text-left font-bold">Tiempo de respuesta</th>
                   <th scope="col" className="p-3 text-left font-bold">Acciones</th>
                 </tr>
               </thead>
@@ -299,13 +395,20 @@ export function GestionTramites() {
               />
             ))}
           </ul>
-        </>
+        </SeccionCard>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <AcuseIndividualPanel onListo={() => void cargar()} />
-        <AcuseLotePanel onListo={() => void cargar()} />
-      </div>
+      <SeccionCard
+        numero={3}
+        titulo="Registrar constancias de recibido con el escáner"
+        descripcion="La lectura del documento sólo propone datos. Revisa y confirma antes de guardar."
+        tono="ocre"
+      >
+        <div className="grid gap-5 lg:grid-cols-2">
+          <AcuseIndividualPanel onListo={() => void cargar()} />
+          <AcuseLotePanel onListo={() => void cargar()} />
+        </div>
+      </SeccionCard>
 
       <DrawerExpediente
         tramiteId={detalleId}
@@ -328,10 +431,10 @@ export function GestionTramites() {
                 accion.tramite,
                 null,
                 'turnado',
-                `Oficio turnado: ${accion.tramite.folio}`,
-                'Se turnó el oficio a las dependencias seleccionadas.'
+                `Enviado a revisión: ${accion.tramite.folio}`,
+                'Se envió la solicitud a las dependencias seleccionadas.'
               );
-            }, 'El oficio se turnó correctamente y se iniciaron los relojes.')
+            }, 'Listo. Enviamos la solicitud a revisión y comenzó el conteo del tiempo.')
           }
         />
       )}
@@ -339,9 +442,9 @@ export function GestionTramites() {
       {accion?.tipo === 'recepcion' && (
         <DialogoConfirmacion
           abierto
-          titulo="Registrar recepción"
+          titulo="Confirmar recepción de documentos"
           mensaje={`Confirma que ${nombreDependencia(accion.fila.dependencia_id, datos.catalogo)} recibió los documentos del folio ${accion.tramite.folio}.`}
-          etiquetaConfirmar="Sí, registrar recepción"
+          etiquetaConfirmar="Sí, ya los recibimos"
           ocupado={ocupado}
           onCancelar={() => { setAccion(null); setErrorAccion(''); }}
           onConfirmar={() =>
@@ -349,7 +452,7 @@ export function GestionTramites() {
               if (!repositorio) return;
               await repositorio.registrarRecepcion({ actor, tramiteDependenciaId: accion.fila.id });
               await encolar(accion.tramite, accion.fila, 'recepcion', `Recepción confirmada: ${accion.tramite.folio}`, 'La dependencia confirmó que recibió los documentos.');
-            }, 'Recepción registrada. La revisión ya está en curso.')
+            }, 'Listo. Confirmamos la recepción y comenzó la revisión.')
           }
         >
           <Aviso mensaje={errorAccion} />
@@ -373,8 +476,8 @@ export function GestionTramites() {
                 motivo,
                 ...(fechaVisita ? { fechaVisita } : {})
               });
-              await encolar(accion.tramite, accion.fila, 'dictamen', `Dictamen registrado: ${accion.tramite.folio}`, `Se registró el dictamen: ${dictamen}.`);
-            }, 'Dictamen registrado. La persona contribuyente fue notificada.')
+              await encolar(accion.tramite, accion.fila, 'dictamen', `Resultado de la revisión: ${accion.tramite.folio}`, `Se registró el resultado: ${dictamen}.`);
+            }, 'Listo. Guardamos el resultado y avisamos a la persona contribuyente.')
           }
         />
       )}
@@ -395,8 +498,8 @@ export function GestionTramites() {
                 selloFecha: fecha,
                 selloHora: hora
               });
-              await encolar(accion.tramite, accion.fila, 'acuse', `Acuse registrado: ${accion.tramite.folio}`, 'Se registró el acuse con sello.');
-            }, 'Acuse registrado. Se detuvo el reloj de entrega.')
+              await encolar(accion.tramite, accion.fila, 'acuse', `Constancia registrada: ${accion.tramite.folio}`, 'Se registró la constancia con sello.');
+            }, 'Listo. Guardamos la constancia y se detuvo el tiempo de entrega.')
           }
         />
       )}
@@ -431,7 +534,7 @@ export function GestionTramites() {
           <Aviso mensaje={errorAccion} />
         </DialogoConfirmacion>
       )}
-    </main>
+    </PageShell>
   );
 }
 
@@ -449,9 +552,9 @@ function FilaBandeja({ tramite, datos, actor, esSecretaria, onAccion, onDetalle 
   const pendientes = tramite.dependencias.filter((item) => item.estado === 'pendiente');
 
   return (
-    <tr className="border-t border-slate-300">
+    <tr className="border-t-2 border-arena">
       <td className="p-3 align-top">
-        <button type="button" onClick={onDetalle} className="min-h-tactil font-bold text-enfasis underline">
+        <button type="button" onClick={onDetalle} className="min-h-tactil font-bold text-barro underline decoration-2 underline-offset-2">
           {tramite.folio}
         </button>
         <div>{tramite.nombre_contribuyente}</div>
@@ -498,8 +601,8 @@ function TarjetaBandeja({ tramite, datos, actor, esSecretaria, onAccion, onDetal
   const pendientes = tramite.dependencias.filter((item) => item.estado === 'pendiente');
 
   return (
-    <li className="rounded-control border-2 border-slate-300 bg-white p-4">
-      <button type="button" onClick={onDetalle} className="min-h-tactil text-left text-xl font-bold text-enfasis underline">
+    <li className="rounded-control border-2 border-arena bg-superficie p-4">
+      <button type="button" onClick={onDetalle} className="min-h-tactil text-left text-xl font-bold text-barro underline decoration-2 underline-offset-2">
         {tramite.folio}
       </button>
       <p className="text-lg text-tinta">{tramite.nombre_contribuyente}</p>
@@ -535,71 +638,116 @@ interface AccionesProps extends FilaProps {
   pendientes: TramiteDependencia[];
 }
 
+interface AccionVisible {
+  clave: string;
+  etiqueta: string;
+  icono: ReactNode;
+  ejecutar(): void;
+}
+
 function AccionesFila({ tramite, datos, actor, esSecretaria, pendientes, onAccion, onDetalle }: AccionesProps) {
-  const boton = 'min-h-tactil rounded-control border-2 border-enfasis bg-white px-3 py-2 text-base font-bold text-enfasis';
+  const urgencia = resumenUrgencia(tramite, datos.configuracion);
+  const turnado = tramite.dependencias.find((fila) => fila.estado === 'turnado');
+  const recepcion = tramite.dependencias.find(
+    (fila) => fila.estado === 'turnado' && fila.dependencia_id === actor.dependencia_id
+  );
+  const inspeccion = tramite.dependencias.find(
+    (fila) => fila.estado === 'en_inspeccion' && fila.dependencia_id === actor.dependencia_id
+  );
+  const recordatorio = tramite.dependencias.find(
+    (fila) => fila.dependencia_id && esUrgente(urgencia.categoria)
+  );
+
+  const todas: AccionVisible[] = [
+    {
+      clave: 'detalle',
+      etiqueta: 'Ver expediente',
+      icono: <ClipboardCheck aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: onDetalle
+    }
+  ];
+
+  if (esSecretaria && pendientes.length > 0) {
+    todas.push({
+      clave: 'turnar',
+      etiqueta: 'Enviar a revisión',
+      icono: <Send aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: () => onAccion({ tipo: 'turnar', tramite })
+    });
+  }
+  if (esSecretaria && turnado) {
+    todas.push({
+      clave: 'acuse',
+      etiqueta: 'Registrar constancia de recibido',
+      icono: <FileCheck2 aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: () => onAccion({ tipo: 'acuse', tramite, fila: turnado })
+    });
+  }
+  if (recepcion) {
+    todas.push({
+      clave: `recepcion-${recepcion.id}`,
+      etiqueta: 'Confirmar que recibimos los documentos',
+      icono: <CheckCircle2 aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: () => onAccion({ tipo: 'recepcion', tramite, fila: recepcion })
+    });
+  }
+  if (inspeccion) {
+    todas.push({
+      clave: `resultado-${inspeccion.id}`,
+      etiqueta: 'Dar resultado de la revisión',
+      icono: <ShieldAlert aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: () => onAccion({ tipo: 'dictamen', tramite, fila: inspeccion })
+    });
+  }
+  if ((actor.rol === 'secretaria' || actor.rol === 'admin') && recordatorio) {
+    todas.push({
+      clave: `recordatorio-${recordatorio.id}`,
+      etiqueta: 'Enviar recordatorio',
+      icono: <BellRing aria-hidden="true" className="inline h-5 w-5" />,
+      ejecutar: () => onAccion({ tipo: 'recordatorio', tramite, fila: recordatorio })
+    });
+  }
+
+  // Prioridad de la acción recomendada: lo que desbloquea el trámite primero.
+  const prioridad = ['turnar', 'acuse', 'recepcion', 'resultado', 'recordatorio'];
+  const recomendada =
+    todas
+      .filter((accion) => prioridad.some((prefijo) => accion.clave.startsWith(prefijo)))
+      .sort((a, b) => {
+        const pa = prioridad.findIndex((prefijo) => a.clave.startsWith(prefijo));
+        const pb = prioridad.findIndex((prefijo) => b.clave.startsWith(prefijo));
+        return pa - pb;
+      })[0] ?? todas[0];
+
+  const secundarias = todas.filter((accion) => accion.clave !== recomendada.clave);
+  const boton = 'inline-flex min-h-tactil items-center gap-2 rounded-control border-2 border-barro bg-superficie px-3 py-2 text-base font-bold text-barro';
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={onDetalle} className={boton}>Ver expediente</button>
+    <div className="flex flex-wrap items-start gap-2">
+      <button
+        type="button"
+        onClick={recomendada.ejecutar}
+        className="inline-flex min-h-tactil items-center gap-2 rounded-control bg-barro px-3 py-2 text-base font-bold text-white"
+      >
+        {recomendada.icono}
+        {recomendada.etiqueta}
+      </button>
 
-      {esSecretaria && pendientes.length > 0 && (
-        <button type="button" onClick={() => onAccion({ tipo: 'turnar', tramite })} className={boton}>
-          <Send aria-hidden="true" className="inline h-4 w-4" /> Turnar oficio
-        </button>
+      {secundarias.length > 0 && (
+        <details className="max-w-full">
+          <summary className={`${boton} cursor-pointer list-none marker:hidden`}>
+            Más acciones
+          </summary>
+          <div className="mt-2 grid gap-2 rounded-control border-2 border-arena bg-papel p-3">
+            {secundarias.map((accion) => (
+              <button key={accion.clave} type="button" onClick={accion.ejecutar} className={boton}>
+                {accion.icono}
+                {accion.etiqueta}
+              </button>
+            ))}
+          </div>
+        </details>
       )}
-
-      {esSecretaria && tramite.dependencias.some((fila) => fila.estado === 'turnado') && (
-        <button
-          type="button"
-          onClick={() => {
-            const fila = tramite.dependencias.find((item) => item.estado === 'turnado');
-            if (fila) onAccion({ tipo: 'acuse', tramite, fila });
-          }}
-          className={boton}
-        >
-          <ClipboardCheck aria-hidden="true" className="inline h-4 w-4" /> Registrar acuse
-        </button>
-      )}
-
-      {tramite.dependencias
-        .filter((fila) => fila.estado === 'turnado' && fila.dependencia_id === actor.dependencia_id)
-        .map((fila) => (
-          <button
-            key={`recepcion-${fila.id}`}
-            type="button"
-            onClick={() => onAccion({ tipo: 'recepcion', tramite, fila })}
-            className={boton}
-          >
-            <CheckCircle2 aria-hidden="true" className="inline h-4 w-4" /> Registrar recepción
-          </button>
-        ))}
-
-      {tramite.dependencias
-        .filter((fila) => fila.estado === 'en_inspeccion' && fila.dependencia_id === actor.dependencia_id)
-        .map((fila) => (
-          <button
-            key={`dictamen-${fila.id}`}
-            type="button"
-            onClick={() => onAccion({ tipo: 'dictamen', tramite, fila })}
-            className={boton}
-          >
-            <ShieldAlert aria-hidden="true" className="inline h-4 w-4" /> Emitir dictamen
-          </button>
-        ))}
-
-      {(actor.rol === 'secretaria' || actor.rol === 'admin') &&
-        tramite.dependencias
-          .filter((fila) => fila.dependencia_id && esUrgente(resumenUrgencia(tramite, datos.configuracion).categoria))
-          .map((fila) => (
-            <button
-              key={`recordatorio-${fila.id}`}
-              type="button"
-              onClick={() => onAccion({ tipo: 'recordatorio', tramite, fila })}
-              className={boton}
-            >
-              <BellRing aria-hidden="true" className="inline h-4 w-4" /> Enviar recordatorio
-            </button>
-          ))}
     </div>
   );
 }
@@ -624,9 +772,9 @@ function DialogoTurnar({ tramite, catalogo, ocupado, error, onCancelar, onConfir
   return (
     <DialogoConfirmacion
       abierto
-      titulo="Turnar oficio"
+      titulo="Enviar a revisión"
       mensaje={`Elige a qué dependencias enviarás el folio ${tramite.folio}. Todas recibirán el mismo número de oficio.`}
-      etiquetaConfirmar="Turnar oficio"
+      etiquetaConfirmar="Sí, enviar a revisión"
       ocupado={ocupado || seleccion.length === 0}
       onCancelar={onCancelar}
       onConfirmar={() => onConfirmar(seleccion)}
@@ -677,9 +825,9 @@ function DialogoDictamen({ accion, catalogo, ocupado, error, onCancelar, onConfi
   return (
     <DialogoConfirmacion
       abierto
-      titulo="Emitir dictamen"
-      mensaje={`Registra tu decisión sobre el folio ${accion.tramite.folio} en ${nombreDependencia(accion.fila.dependencia_id, catalogo)}.`}
-      etiquetaConfirmar="Guardar dictamen"
+      titulo="Dar resultado de la revisión"
+      mensaje={`Registra lo que encontraste en el folio ${accion.tramite.folio} de ${nombreDependencia(accion.fila.dependencia_id, catalogo)}.`}
+      etiquetaConfirmar="Guardar resultado"
       ocupado={ocupado || !motivoValido || !visitaValida}
       onCancelar={onCancelar}
       onConfirmar={confirmar}
@@ -687,7 +835,7 @@ function DialogoDictamen({ accion, catalogo, ocupado, error, onCancelar, onConfi
       <Aviso mensaje={error} />
       <div className="mt-4 grid gap-4">
         <fieldset>
-          <legend className="text-lg font-bold text-tinta">Decisión</legend>
+          <legend className="text-lg font-bold text-tinta">¿Qué encontraste?</legend>
           {(['aprobado', 'observaciones', 'rechazado'] as const).map((opcion) => (
             <label key={opcion} className="mt-2 flex min-h-tactil items-center gap-3 text-lg text-tinta">
               <input
@@ -698,7 +846,7 @@ function DialogoDictamen({ accion, catalogo, ocupado, error, onCancelar, onConfi
                 onChange={() => setDictamen(opcion)}
                 className="h-6 w-6"
               />
-              {opcion === 'aprobado' ? 'Aprobado' : opcion === 'observaciones' ? 'Con observaciones' : 'Rechazado'}
+              {opcion === 'aprobado' ? 'Aprobado' : opcion === 'observaciones' ? 'Falta documentación' : 'Rechazado'}
             </label>
           ))}
         </fieldset>
@@ -713,7 +861,7 @@ function DialogoDictamen({ accion, catalogo, ocupado, error, onCancelar, onConfi
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-control border-2 border-slate-400 bg-white p-3 text-lg text-tinta"
+              className="mt-1 w-full rounded-control border-2 border-bordeCampo bg-superficie p-3 text-lg text-tinta"
             />
             {!motivoValido && (
               <p className="mt-1 text-lg font-semibold text-tinta">Escribe un motivo claro de al menos 10 caracteres.</p>
@@ -729,7 +877,7 @@ function DialogoDictamen({ accion, catalogo, ocupado, error, onCancelar, onConfi
               type="date"
               value={fechaVisita}
               onChange={(e) => setFechaVisita(e.target.value)}
-              className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
+              className="mt-1 min-h-control w-full rounded-control border-2 border-bordeCampo bg-superficie px-3 text-lg text-tinta"
             />
             {!visitaValida && <p className="mt-1 text-lg font-semibold text-tinta">Captura la fecha de tu visita.</p>}
           </div>
@@ -756,9 +904,9 @@ function DialogoAcuse({ accion, ocupado, error, onCancelar, onConfirmar }: Dialo
   return (
     <DialogoConfirmacion
       abierto
-      titulo="Registrar acuse sellado"
-      mensaje={`Captura los datos del sello del oficio del folio ${accion.tramite.folio}.`}
-      etiquetaConfirmar="Guardar acuse"
+      titulo="Registrar constancia de recibido"
+      mensaje={`Captura los datos del sello de la constancia del folio ${accion.tramite.folio}.`}
+      etiquetaConfirmar="Guardar constancia"
       ocupado={ocupado || !completo}
       onCancelar={onCancelar}
       onConfirmar={() => onConfirmar(folio.trim(), fecha, hora)}
@@ -766,14 +914,14 @@ function DialogoAcuse({ accion, ocupado, error, onCancelar, onConfirmar }: Dialo
       <Aviso mensaje={error} />
       <div className="mt-4 grid gap-3">
         <div>
-          <label htmlFor="sello-folio" className="block text-lg font-bold text-tinta">Folio del sello</label>
+          <label htmlFor="sello-folio" className="block text-lg font-bold text-tinta">Folio de la constancia</label>
           <input
             id="sello-folio"
             required
             minLength={4}
             value={folio}
             onChange={(e) => setFolio(e.target.value)}
-            className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
+            className="mt-1 min-h-control w-full rounded-control border-2 border-bordeCampo bg-superficie px-3 text-lg text-tinta"
           />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -785,7 +933,7 @@ function DialogoAcuse({ accion, ocupado, error, onCancelar, onConfirmar }: Dialo
               required
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
+              className="mt-1 min-h-control w-full rounded-control border-2 border-bordeCampo bg-superficie px-3 text-lg text-tinta"
             />
           </div>
           <div>
@@ -796,12 +944,14 @@ function DialogoAcuse({ accion, ocupado, error, onCancelar, onConfirmar }: Dialo
               required
               value={hora}
               onChange={(e) => setHora(e.target.value)}
-              className="mt-1 min-h-control w-full rounded-control border-2 border-slate-400 bg-white px-3 text-lg text-tinta"
+              className="mt-1 min-h-control w-full rounded-control border-2 border-bordeCampo bg-superficie px-3 text-lg text-tinta"
             />
           </div>
         </div>
         {!completo && (
-          <p className="text-lg text-tinta">Captura folio, fecha y hora para poder guardar el acuse.</p>
+          <p className="text-lg leading-relaxed text-tinta">
+            Captura folio, fecha y hora para guardar la constancia de recibido.
+          </p>
         )}
       </div>
     </DialogoConfirmacion>

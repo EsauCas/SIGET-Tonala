@@ -4,16 +4,50 @@
 
 :root {
   color-scheme: light;
+  font-size: 100%;
+}
+
+/* Tamaño de letra controlado por la persona, persistido en ControlTamanoLetra. */
+html[data-tamano='grande'] {
+  font-size: 125%;
+}
+
+html[data-tamano='muy-grande'] {
+  font-size: 150%;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-size: 18px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1.125rem;
   line-height: 1.75;
-  color: #111827;
-  background-color: #f8fafc;
+  color: #2b1810;
+  background-color: #fbf5ec;
 }
 
 :focus-visible {
-  outline: 3px solid #1d4ed8;
-  outline-offset: 3px;
+  outline: 3px solid #0b3d91;
+  outline-offset: 2px;
+}
+
+/* Las migas y los títulos no quedan tapados al usar anclas internas. */
+[id] {
+  scroll-margin-top: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

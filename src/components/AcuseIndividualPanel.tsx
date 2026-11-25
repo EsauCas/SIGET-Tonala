@@ -26,7 +26,7 @@ export function AcuseIndividualPanel({ onListo }: { onListo?: () => void }) {
     const oficio = resultado.oficio;
     if (!oficio) {
       setExito(false);
-      setMensaje('No pudimos leer los datos del oficio. Cápturalos a mano.');
+      setMensaje('No pudimos leer los datos del oficio. Captúralos a mano.');
       return;
     }
 
@@ -52,7 +52,7 @@ export function AcuseIndividualPanel({ onListo }: { onListo?: () => void }) {
       onListo?.();
     } catch (error) {
       setExito(false);
-      setMensaje(error instanceof Error ? error.message : 'No se pudo registrar el acuse leído.');
+      setMensaje(error instanceof Error ? error.message : 'No se pudo registrar la constancia leída.');
     } finally {
       setProcesando(false);
     }
@@ -61,25 +61,25 @@ export function AcuseIndividualPanel({ onListo }: { onListo?: () => void }) {
   return (
     <section
       aria-labelledby="acuse-individual-titulo"
-      className="rounded-control border-2 border-slate-300 bg-white p-5"
+      className="rounded-control border-2 border-arena bg-superficie p-5"
     >
-      <h2 id="acuse-individual-titulo" className="text-xl font-bold text-tinta">
-        Registrar acuse con lectura automática
+      <h2 id="acuse-individual-titulo" className="text-2xl font-bold text-cafe">
+        Registrar la constancia de recibido con lectura automática
       </h2>
-      <p className="mt-2 text-lg leading-relaxed text-tinta">
-        Toma una foto del oficio sellado. Revisa cada dato y confírmalo: hasta entonces no se detiene
-        ningún reloj ni cambia el expediente.
+      <p className="mt-3 text-lg leading-relaxed text-tinta">
+        Toma una foto del oficio con sello. Revisa cada dato y confírmalo: hasta entonces no cambia
+        el expediente ni se detiene el tiempo de respuesta.
       </p>
 
       <div className="mt-4">
-        <Aviso mensaje={procesando ? 'Guardando el acuse confirmado...' : mensaje} exito={exito} />
+        <Aviso mensaje={procesando ? 'Guardando la constancia confirmada...' : mensaje} exito={exito} />
       </div>
 
       <div className="mt-4">
         <OcrScanner
           formato="oficio_verificacion"
           confirmarDeshabilitado={sinPermiso}
-          etiquetaConfirmar="Confirmar acuse y detener reloj"
+          etiquetaConfirmar="Confirmar constancia de recibido"
           onConfirm={(resultado) => void confirmar(resultado)}
           onCancel={() => {
             setMensaje('');

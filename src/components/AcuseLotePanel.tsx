@@ -25,7 +25,7 @@ export function AcuseLotePanel({ onListo }: { onListo?: () => void }) {
     const oficio = resultado.oficio;
     if (!oficio) {
       setExito(false);
-      setMensaje('No pudimos leer los datos del oficio. Cápturalos a mano.');
+      setMensaje('No pudimos leer los datos del oficio. Captúralos a mano.');
       return;
     }
 
@@ -58,7 +58,7 @@ export function AcuseLotePanel({ onListo }: { onListo?: () => void }) {
       onListo?.();
     } catch (error) {
       setExito(false);
-      setMensaje(error instanceof Error ? error.message : 'No se pudo registrar el acuse en lote.');
+      setMensaje(error instanceof Error ? error.message : 'No se pudieron registrar las constancias del lote.');
     } finally {
       setProcesando(false);
     }
@@ -67,15 +67,15 @@ export function AcuseLotePanel({ onListo }: { onListo?: () => void }) {
   return (
     <section
       aria-labelledby="acuse-lote-titulo"
-      className="rounded-control border-2 border-slate-300 bg-white p-5"
+      className="rounded-control border-2 border-arena bg-superficie p-5"
     >
-      <h2 id="acuse-lote-titulo" className="text-xl font-bold text-tinta">
-        Carga de acuse en lote
+      <h2 id="acuse-lote-titulo" className="text-2xl font-bold text-cafe">
+        Registrar varias constancias de recibido
       </h2>
-      <p className="mt-2 text-lg leading-relaxed text-tinta">
-        Sube la foto del oficio que trae varios folios. Cada solicitud se revisa antes de actualizar
-        los expedientes. Los folios que no se encuentren se listan al final; nada se duplica si se
-        repite el mismo acuse.
+      <p className="mt-3 text-lg leading-relaxed text-tinta">
+        Sube la foto del oficio que trae varios folios. Revisa cada solicitud antes de actualizar
+        los expedientes. Al final verás los folios que no se encontraron; si repites el mismo oficio,
+        no se duplica nada.
       </p>
 
       <div className="mt-4">
@@ -83,17 +83,17 @@ export function AcuseLotePanel({ onListo }: { onListo?: () => void }) {
       </div>
 
       {foliosNoEncontrados.length > 0 && (
-        <div className="mt-3 rounded-control border-2 border-semaforo-ambar bg-amber-50 p-4">
-          <h3 className="flex items-start gap-2 text-lg font-bold text-tinta">
+        <div className="mt-3 rounded-control border-l-8 border-semaforo-ambar bg-semaforo-fondo-ambar p-4">
+          <h3 className="flex items-start gap-3 text-lg font-bold text-tinta">
             <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 shrink-0" />
             Folios que no se encontraron
           </h3>
-          <ul className="mt-2 grid list-inside list-disc gap-1 text-lg text-tinta">
+          <ul className="mt-3 grid list-inside list-disc gap-2 text-lg leading-relaxed text-tinta">
             {foliosNoEncontrados.map((folio) => (
               <li key={folio}>{folio}</li>
             ))}
           </ul>
-          <p className="mt-2 text-lg leading-relaxed text-tinta">
+          <p className="mt-3 text-lg leading-relaxed text-tinta">
             Los demás expedientes sí se actualizaron. Revisa estos folios y captúralos a mano si hace falta.
           </p>
         </div>

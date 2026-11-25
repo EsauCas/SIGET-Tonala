@@ -1,6 +1,8 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { COLONIAS_TONALA, GIROS_TONALA, TIPOS_TRAMITE } from '@/lib/catalogos';
+import { CLASE_CAMPO, CLASE_ETIQUETA, CLASE_ERROR } from '@/components/layout/estilos';
 import type {
   CampoSolicitud,
   DatosSolicitud,
@@ -15,10 +17,27 @@ export interface CamposSolicitudProps {
   onAlternarDependencia(clave: ClaveDependencia): void;
 }
 
-const CLASE_CONTROL =
-  'mt-2 block w-full min-h-control rounded-control border-2 border-slate-400 bg-white px-4 py-3 text-lg leading-relaxed text-tinta';
-const CLASE_ETIQUETA = 'block text-lg font-semibold text-tinta';
-const CLASE_ERROR = 'mt-1 text-lg font-semibold text-peligro';
+interface EtiquetaProps {
+  htmlFor: string;
+  obligatorio?: boolean;
+  ayuda?: string;
+  children: ReactNode;
+}
+
+/** Etiqueta visible con "(obligatorio)" fuera del nombre accesible del campo. */
+function Etiqueta({ htmlFor, obligatorio = false, ayuda, children }: EtiquetaProps) {
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <label className={CLASE_ETIQUETA} htmlFor={htmlFor}>
+          {children}
+        </label>
+        {obligatorio && <span className="text-base font-bold text-tinta">(obligatorio)</span>}
+      </div>
+      {ayuda && <p className="mt-1 text-base leading-relaxed text-tinta">{ayuda}</p>}
+    </div>
+  );
+}
 
 /** Campos editables de la solicitud, compartidos por los pasos 2 y 3. */
 export function CamposSolicitud({
@@ -37,16 +56,16 @@ export function CamposSolicitud({
 
   return (
     <div className="grid gap-5">
-      <fieldset className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <legend className="px-2 text-xl font-bold text-tinta">Datos de la persona</legend>
-        <div className="mt-3 grid gap-4">
+      <fieldset className="rounded-control border-2 border-arena bg-superficie p-5">
+        <legend className="px-2 text-xl font-bold text-cafe">Datos de la persona</legend>
+        <div className="mt-3 grid gap-5">
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="nombre-contribuyente">
+            <Etiqueta htmlFor="nombre-contribuyente" obligatorio ayuda="Escribe el nombre completo, sin abreviaturas.">
               Nombre de la persona contribuyente
-            </label>
+            </Etiqueta>
             <input
               id="nombre-contribuyente"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.nombre_contribuyente}
               onChange={(evento) => onChange('nombre_contribuyente', evento.target.value)}
               aria-invalid={invalido('nombre_contribuyente')}
@@ -60,12 +79,12 @@ export function CamposSolicitud({
           </div>
 
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="domicilio-contribuyente">
+            <Etiqueta htmlFor="domicilio-contribuyente" obligatorio ayuda="Calle, número y colonia donde vives.">
               Domicilio de la persona contribuyente
-            </label>
+            </Etiqueta>
             <input
               id="domicilio-contribuyente"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.domicilio_contribuyente}
               onChange={(evento) => onChange('domicilio_contribuyente', evento.target.value)}
               aria-invalid={invalido('domicilio_contribuyente')}
@@ -79,14 +98,14 @@ export function CamposSolicitud({
           </div>
 
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="telefono">
+            <Etiqueta htmlFor="telefono" obligatorio ayuda="A 10 números, sin espacios ni guiones.">
               Teléfono a 10 números
-            </label>
+            </Etiqueta>
             <input
               id="telefono"
               type="tel"
               inputMode="tel"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.telefono}
               onChange={(evento) => onChange('telefono', evento.target.value)}
               aria-invalid={invalido('telefono')}
@@ -101,16 +120,16 @@ export function CamposSolicitud({
         </div>
       </fieldset>
 
-      <fieldset className="rounded-control border-2 border-slate-300 bg-white p-5">
-        <legend className="px-2 text-xl font-bold text-tinta">Datos del negocio</legend>
-        <div className="mt-3 grid gap-4">
+      <fieldset className="rounded-control border-2 border-arena bg-superficie p-5">
+        <legend className="px-2 text-xl font-bold text-cafe">Datos del negocio</legend>
+        <div className="mt-3 grid gap-5">
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="tipo-tramite">
+            <Etiqueta htmlFor="tipo-tramite" obligatorio ayuda="Si no sabes cuál elegir, mira la guía de arriba.">
               Tipo de licencia
-            </label>
+            </Etiqueta>
             <select
               id="tipo-tramite"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.tipo_tramite}
               onChange={(evento) => onChange('tipo_tramite', evento.target.value)}
               aria-invalid={invalido('tipo_tramite')}
@@ -131,13 +150,13 @@ export function CamposSolicitud({
           </div>
 
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="giro-principal">
+            <Etiqueta htmlFor="giro-principal" obligatorio ayuda="Por ejemplo: panadería, ferretería o cafetería.">
               Giro principal del negocio
-            </label>
+            </Etiqueta>
             <input
               id="giro-principal"
               list="giros-sugeridos"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.giro_principal}
               onChange={(evento) => onChange('giro_principal', evento.target.value)}
               aria-invalid={invalido('giro_principal')}
@@ -156,24 +175,24 @@ export function CamposSolicitud({
           </div>
 
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="giros-anexos">
+            <Etiqueta htmlFor="giros-anexos" ayuda="Separa cada giro con una coma. Si no tienes otros, déjalo vacío.">
               Otros giros (opcional, separa con comas)
-            </label>
+            </Etiqueta>
             <input
               id="giros-anexos"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.giros_anexos}
               onChange={(evento) => onChange('giros_anexos', evento.target.value)}
             />
           </div>
 
           <div>
-            <label className={CLASE_ETIQUETA} htmlFor="domicilio-negocio">
+            <Etiqueta htmlFor="domicilio-negocio" obligatorio ayuda="Incluye el número exterior o interior.">
               Calle y número del negocio
-            </label>
+            </Etiqueta>
             <input
               id="domicilio-negocio"
-              className={CLASE_CONTROL}
+              className={CLASE_CAMPO}
               value={forma.domicilio_negocio}
               onChange={(evento) => onChange('domicilio_negocio', evento.target.value)}
               aria-invalid={invalido('domicilio_negocio')}
@@ -186,14 +205,14 @@ export function CamposSolicitud({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={CLASE_ETIQUETA} htmlFor="colonia">
+              <Etiqueta htmlFor="colonia" obligatorio ayuda="Elige la colonia más cercana.">
                 Colonia del negocio
-              </label>
+              </Etiqueta>
               <select
                 id="colonia"
-                className={CLASE_CONTROL}
+                className={CLASE_CAMPO}
                 value={forma.colonia}
                 onChange={(evento) => onChange('colonia', evento.target.value)}
                 aria-invalid={invalido('colonia')}
@@ -213,14 +232,14 @@ export function CamposSolicitud({
               )}
             </div>
             <div>
-              <label className={CLASE_ETIQUETA} htmlFor="cp">
+              <Etiqueta htmlFor="cp" obligatorio ayuda="Son 5 números.">
                 Código postal (5 números)
-              </label>
+              </Etiqueta>
               <input
                 id="cp"
                 inputMode="numeric"
                 maxLength={5}
-                className={CLASE_CONTROL}
+                className={CLASE_CAMPO}
                 value={forma.cp}
                 onChange={(evento) => onChange('cp', evento.target.value.replace(/\D/g, ''))}
                 aria-invalid={invalido('cp')}
@@ -234,17 +253,17 @@ export function CamposSolicitud({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={CLASE_ETIQUETA} htmlFor="superficie">
+              <Etiqueta htmlFor="superficie" obligatorio ayuda="Puedes usar un número aproximado.">
                 Superficie en metros cuadrados
-              </label>
+              </Etiqueta>
               <input
                 id="superficie"
                 type="number"
                 min="1"
                 step="any"
-                className={CLASE_CONTROL}
+                className={CLASE_CAMPO}
                 value={forma.superficie_m2}
                 onChange={(evento) => onChange('superficie_m2', evento.target.value)}
                 aria-invalid={invalido('superficie_m2')}
@@ -257,15 +276,15 @@ export function CamposSolicitud({
               )}
             </div>
             <div>
-              <label className={CLASE_ETIQUETA} htmlFor="inversion">
+              <Etiqueta htmlFor="inversion" obligatorio ayuda="Escribe un número en pesos, sin comas.">
                 Inversión estimada en pesos
-              </label>
+              </Etiqueta>
               <input
                 id="inversion"
                 type="number"
                 min="0"
                 step="any"
-                className={CLASE_CONTROL}
+                className={CLASE_CAMPO}
                 value={forma.inversion_estimada}
                 onChange={(evento) => onChange('inversion_estimada', evento.target.value)}
                 aria-invalid={invalido('inversion_estimada')}
@@ -282,13 +301,15 @@ export function CamposSolicitud({
       </fieldset>
 
       <fieldset
-        className="rounded-control border-2 border-slate-300 bg-white p-5"
+        className="rounded-control border-2 border-arena bg-superficie p-5"
         aria-describedby={errores.dependenciasRequeridas ? 'error-dependenciasRequeridas' : undefined}
       >
-        <legend className="px-2 text-xl font-bold text-tinta">
-          ¿Quién debe revisar tu solicitud?
+        <legend className="px-2 text-xl font-bold text-cafe">
+          ¿Quién debe revisar tu solicitud? <span className="text-base font-bold text-tinta">(obligatorio)</span>
         </legend>
-        <p className="mt-2 text-lg text-tinta">Puedes elegir una o las dos dependencias.</p>
+        <p className="mt-2 text-lg leading-relaxed text-tinta">
+          Puedes elegir una o las dos dependencias. Si no sabes cuál necesitas, deja ambas seleccionadas.
+        </p>
         <div className="mt-3 grid gap-3">
           {(
             [
@@ -298,7 +319,7 @@ export function CamposSolicitud({
           ).map((opcion) => (
             <label
               key={opcion.clave}
-              className="flex min-h-tactil items-center gap-3 text-lg font-semibold text-tinta"
+              className="flex min-h-tactil items-center gap-3 rounded-control border-2 border-arena px-4 py-3 text-lg font-semibold text-tinta"
             >
               <input
                 type="checkbox"

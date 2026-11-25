@@ -1,6 +1,8 @@
 'use client';
 
+import { CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Aviso, Cargando } from '@/components/EstadosVista';
 import { useRepository } from '@/components/RepositoryProvider';
 import type { Profile } from '@/types/database';
 
@@ -46,14 +48,14 @@ export function DemoProfileSelector() {
   }
 
   return (
-    <section className="mt-8 max-w-2xl rounded-control border border-slate-300 bg-white p-5">
-      <h2 className="text-xl font-bold text-tinta">Perfil de demostración</h2>
-      <p className="mt-2 text-lg text-tinta">
+    <section className="mt-8 max-w-2xl rounded-control border-2 border-arena bg-superficie p-5">
+      <h2 className="text-2xl font-bold text-cafe">Perfil de demostración</h2>
+      <p className="mt-3 text-lg leading-relaxed text-tinta">
         Elige con quién quieres probar. Estos usuarios son ficticios.
       </p>
 
-      {estado === 'cargando' && <p className="mt-3 text-lg text-tinta">Cargando perfiles...</p>}
-      {estado === 'error' && <p className="mt-3 text-lg text-peligro">{mensaje}</p>}
+      {estado === 'cargando' && <div className="mt-4"><Cargando mensaje="Cargando perfiles..." /></div>}
+      {estado === 'error' && <div className="mt-4"><Aviso mensaje={mensaje} /></div>}
 
       {estado === 'listo' && (
         <div className="mt-4 flex flex-wrap gap-3">
@@ -65,21 +67,27 @@ export function DemoProfileSelector() {
                 type="button"
                 aria-pressed={seleccionado}
                 onClick={() => void seleccionar(perfil.id)}
-                className={`min-h-control rounded-control border-2 px-4 py-3 text-left text-lg font-semibold ${
+                className={`flex min-h-control flex-col items-start gap-1 rounded-control border-2 px-4 py-3 text-left text-lg font-bold leading-snug ${
                   seleccionado
-                    ? 'border-enfasis bg-blue-50 text-tinta'
-                    : 'border-slate-400 bg-white text-tinta'
+                    ? 'border-barro bg-papel text-tinta'
+                    : 'border-bordeCampo bg-superficie text-tinta'
                 }`}
               >
-                {perfil.nombre}
-                <span className="block text-lg font-normal text-tinta">{perfil.rol.replace('_', ' ')}</span>
+                <span>{perfil.nombre}</span>
+                <span className="text-lg font-semibold text-cafe">{perfil.rol.replace('_', ' ')}</span>
+                {seleccionado && (
+                  <span className="inline-flex items-center gap-2 text-lg font-bold text-barro">
+                    <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0" />
+                    En uso
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
       )}
 
-      <p aria-live="polite" className="mt-3 min-h-[28px] text-lg text-tinta">
+      <p aria-live="polite" className="mt-3 min-h-[28px] text-lg font-semibold text-tinta">
         {mensaje}
       </p>
     </section>
